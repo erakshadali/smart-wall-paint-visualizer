@@ -40,7 +40,6 @@ before painting. Built as a Unified Mentor Full-stack Web Development internship
 ```
 client/   Angular app (pages: home, login, upload, editor, designs, how-to, admin)
 server/   Express API (models, routes, middleware, seed script)
-render.yaml   Render blueprint for the API
 ```
 
 How the realistic paint works: for every pixel in a selected wall the app keeps its brightness relative to the
