@@ -1,11 +1,13 @@
 import { Schema, model } from 'mongoose';
 
 const wallSchema = new Schema({
+  type: { type: String, enum: ['polygon', 'brush'], default: 'polygon' },
   points: [{ x: Number, y: Number }],
+  brushSize: Number,
   colorId: { type: Schema.Types.ObjectId, ref: 'Color' },
   patternId: { type: Schema.Types.ObjectId, ref: 'Pattern' },
-  opacity: { type: Number, default: 0.8 },
-  finish: { type: String, default: 'matte' },
+  opacity: { type: Number, default: 0.8, min: 0, max: 1 },
+  finish: { type: String, enum: ['matte', 'satin', 'glossy'], default: 'matte' },
 });
 
 const projectSchema = new Schema(

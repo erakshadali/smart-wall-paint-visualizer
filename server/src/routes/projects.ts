@@ -45,13 +45,15 @@ router.put('/:id', async (req: AuthRequest, res) => {
   const { title, walls } = req.body ?? {};
   if (title !== undefined) project.title = String(title).slice(0, 80);
   if (Array.isArray(walls)) {
-    const valid = walls.every(
-      (w: any) =>
+    const valid = walls.every((w: any) => {
+      const minPoints = w.type === 'brush' ? 2 : 3;
+      return (
         Array.isArray(w.points) &&
-        w.points.length >= 3 &&
+        w.points.length >= minPoints &&
         w.points.every((p: any) => Number.isFinite(p.x) && Number.isFinite(p.y))
-    );
-    if (!valid) return res.status(400).json({ message: 'Each wall needs at least 3 valid points' });
+      );
+    });
+    if (!valid) return res.status(400).json({ message: 'Each wall needs enough valid points (3 for polygon, 2 for brush)' });
     project.set('walls', walls);
   }
   await project.save();
