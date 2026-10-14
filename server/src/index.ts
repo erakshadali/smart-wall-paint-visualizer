@@ -6,16 +6,30 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
 import authRoutes from './routes/auth.js';
+import projectRoutes from './routes/projects.js';
+import colorRoutes from './routes/colors.js';
+import patternRoutes from './routes/patterns.js';
+import meRoutes from './routes/me.js';
+import adminRoutes from './routes/admin.js';
+import { errorHandler } from './middleware/error.js';
+import { UPLOAD_DIR } from './middleware/upload.js';
 
 const app = express();
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: process.env.CLIENT_URL }));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.use('/uploads', express.static(UPLOAD_DIR));
 app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/colors', colorRoutes);
+app.use('/api/patterns', patternRoutes);
+app.use('/api/me', meRoutes);
+app.use('/api/admin', adminRoutes);
+app.use(errorHandler);
 
 const port = process.env.PORT || 5000;
 mongoose
