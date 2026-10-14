@@ -62,7 +62,7 @@ export class Login {
         ? this.auth.login(this.email(), this.password())
         : this.auth.register(this.name(), this.email(), this.password());
     req.subscribe({
-      next: () => this.router.navigateByUrl('/upload'),
+      next: () => this.router.navigateByUrl('/designs'),
       error: (err) => {
         this.error.set(err.error?.message ?? 'Could not reach the server.');
         this.busy.set(false);

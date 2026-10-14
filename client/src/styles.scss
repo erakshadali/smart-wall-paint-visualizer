@@ -35,3 +35,4 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); ou
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.ghost:hover:not(:disabled) { background: var(--accent-soft); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+a.btn { text-decoration: none; }

@@ -1,0 +1,174 @@
+<app-nav />
+<main>
+  <h1>Admin panel</h1>
+  <div class="tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button role="tab" [attr.aria-selected]="tab() === t.id" [class.on]="tab() === t.id" (click)="setTab(t.id)">{{ t.label }}</button>
+    }
+  </div>
+  @if (msg()) { <p class="msg" role="status">{{ msg() }}</p> }
+
+  @switch (tab()) {
+    @case ('dashboard') {
+      @if (stats(); as s) {
+        <section class="kpis" aria-label="Key performance indicators">
+          <div class="card kpi"><span>Room images uploaded</span><strong>{{ s.imagesUploaded }}</strong></div>
+          <div class="card kpi"><span>Designs saved</span><strong>{{ s.designsSaved }}</strong></div>
+          <div class="card kpi"><span>Avg session duration</span><strong>{{ sessionLabel() }}</strong></div>
+          <div class="card kpi">
+            <span>User satisfaction ({{ s.feedbackCount }} reviews)</span>
+            <strong>{{ s.feedbackCount ? s.avgSatisfaction + ' / 5' : 'No ratings yet' }}</strong>
+          </div>
+          <div class="card kpi"><span>Registered users</span><strong>{{ s.users }}</strong></div>
+        </section>
+      }
+
+      <section class="card chartcard">
+        <div class="charthead">
+          <h2>Room images uploaded per day (last 14 days)</h2>
+          <button class="btn" (click)="showTable.set(!showTable())">{{ showTable() ? 'Show chart' : 'Show table' }}</button>
+        </div>
+        @if (showTable()) {
+          <table>
+            <thead><tr><th>Day</th><th>Uploaded</th><th>Saved with walls</th></tr></thead>
+            <tbody>
+              @for (d of timeline(); track d.day) {
+                <tr><td>{{ d.day }}</td><td>{{ d.uploads }}</td><td>{{ d.saved }}</td></tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          @let c = chart();
+          <div class="chartwrap">
+            <svg [attr.viewBox]="'0 0 ' + c.W + ' ' + c.H" role="img" aria-label="Bar chart of room images uploaded per day over the last 14 days" (mouseleave)="hover.set(null)">
+              @for (t of c.ticks; track t.y) {
+                <line [attr.x1]="c.left" [attr.x2]="c.right" [attr.y1]="t.y" [attr.y2]="t.y" class="grid" />
+                <text [attr.x]="c.left - 6" [attr.y]="t.y + 4" text-anchor="end" class="axis">{{ t.v }}</text>
+              }
+              @for (b of c.bars; track b.day; let i = $index) {
+                <rect class="hit" [attr.x]="b.cx - 20" y="0" width="40" [attr.height]="c.base" (mouseenter)="hover.set(i)" />
+                @if (b.h > 0) {
+                  <rect class="bar" [class.hot]="hover() === i" [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.w" [attr.height]="b.h" rx="4" />
+                  <rect class="flat" [attr.x]="b.x" [attr.y]="c.base - 4" [attr.width]="b.w" height="4" />
+                }
+                @if (i % 2 === 0) {
+                  <text [attr.x]="b.cx" [attr.y]="c.H - 8" text-anchor="middle" class="axis">{{ b.label }}</text>
+                }
+              }
+              <line [attr.x1]="c.left" [attr.x2]="c.right" [attr.y1]="c.base" [attr.y2]="c.base" class="base" />
+            </svg>
+            @if (hover() !== null) {
+              @let b = c.bars[hover()!];
+              <div class="tip" [style.left.%]="(b.cx / c.W) * 100">
+                <strong>{{ b.day }}</strong>
+                <span>{{ b.uploads }} uploaded</span>
+                <span>{{ b.saved }} saved with walls</span>
+              </div>
+            }
+          </div>
+        }
+        @if (updated(); as u) { <small class="muted">Updated {{ u | date: 'mediumTime' }} · refreshes every 10 seconds</small> }
+      </section>
+    }
+
+    @case ('colours') {
+      <form class="card form" (submit)="addColor($event)">
+        <h2>Add a colour</h2>
+        <label>Name <input required [value]="cName()" (input)="cName.set($any($event.target).value)" /></label>
+        <label>Colour <input type="color" [value]="cHex()" (input)="cHex.set($any($event.target).value)" /></label>
+        <label>Brand <input [value]="cBrand()" (input)="cBrand.set($any($event.target).value)" /></label>
+        <label>Tags (comma separated) <input placeholder="Living Room, Accent" [value]="cTags()" (input)="cTags.set($any($event.target).value)" /></label>
+        <button class="btn primary" type="submit" [disabled]="!cName()">Add colour</button>
+      </form>
+      <section class="card">
+        <h2>{{ colors().length }} colours</h2>
+        <ul class="list">
+          @for (c of colors(); track c._id) {
+            <li>
+              <span class="dot" [style.background]="c.hex"></span>
+              <span class="grow">{{ c.name }} <small>{{ c.hex }}</small></span>
+              @if (confirmId() === c._id) {
+                <button class="btn danger" (click)="removeColor(c)">Yes, delete</button>
+                <button class="btn" (click)="confirmId.set(null)">Cancel</button>
+              } @else {
+                <button class="btn" (click)="confirmId.set(c._id)">Delete</button>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @case ('patterns') {
+      <form class="card form" (submit)="addPattern($event)">
+        <h2>Add a pattern</h2>
+        <label>Name <input required [value]="pName()" (input)="pName.set($any($event.target).value)" /></label>
+        <label>Style <input placeholder="Stripes, Floral…" [value]="pStyle()" (input)="pStyle.set($any($event.target).value)" /></label>
+        <label>Tile image (JPG or PNG) <input type="file" accept="image/jpeg,image/png" (change)="pickPatternFile($event)" /></label>
+        <button class="btn primary" type="submit" [disabled]="!pName() || !pFile()">Add pattern</button>
+      </form>
+      <section class="card">
+        <h2>{{ patterns().length }} patterns</h2>
+        <ul class="list">
+          @for (p of patterns(); track p._id) {
+            <li>
+              <img class="tile" [src]="api.imageUrl(p.imageUrl)" [alt]="p.name" />
+              <span class="grow">{{ p.name }} <small>{{ p.style }}</small></span>
+              @if (confirmId() === p._id) {
+                <button class="btn danger" (click)="removePattern(p)">Yes, delete</button>
+                <button class="btn" (click)="confirmId.set(null)">Cancel</button>
+              } @else {
+                <button class="btn" (click)="confirmId.set(p._id)">Delete</button>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @case ('users') {
+      <section class="card">
+        <h2>{{ users().length }} users</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Designs</th><th>Joined</th></tr></thead>
+            <tbody>
+              @for (u of users(); track u._id) {
+                <tr><td>{{ u.name }}</td><td>{{ u.email }}</td><td>{{ u.role }}</td><td>{{ u.projectCount }}</td><td>{{ u.createdAt | date: 'mediumDate' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    @case ('designs') {
+      <section class="card">
+        <h2>Saved designs ({{ designs().length }})</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Title</th><th>Owner</th><th>Walls</th><th>Updated</th><th></th></tr></thead>
+            <tbody>
+              @for (d of designs(); track d._id) {
+                <tr>
+                  <td>{{ d.title }}</td>
+                  <td>{{ d.owner?.name }} <small>{{ d.owner?.email }}</small></td>
+                  <td>{{ d.walls.length }}</td>
+                  <td>{{ d.updatedAt | date: 'medium' }}</td>
+                  <td>
+                    @if (confirmId() === d._id) {
+                      <button class="btn danger" (click)="removeDesign(d)">Yes, delete</button>
+                      <button class="btn" (click)="confirmId.set(null)">Cancel</button>
+                    } @else {
+                      <button class="btn" (click)="confirmId.set(d._id)">Delete</button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  }
+</main>

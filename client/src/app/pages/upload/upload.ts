@@ -1,17 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/api.service';
-import { AuthService } from '../../core/auth.service';
+import { Nav } from '../../shared/nav';
 
 @Component({
   selector: 'app-upload',
+  imports: [Nav],
   template: `
-    <header class="top">
-      <strong>Smart Wall Paint Visualizer</strong>
-      <span class="spacer"></span>
-      <span class="who">{{ auth.user()?.name }}</span>
-      <button class="btn ghost" (click)="auth.logout()">Sign out</button>
-    </header>
+    <app-nav />
 
     <main class="wrap">
       <form class="card" (submit)="submit($event)">
@@ -34,9 +30,6 @@ import { AuthService } from '../../core/auth.service';
     </main>
   `,
   styles: `
-    .top { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
-    .spacer { flex: 1; }
-    .who { color: var(--muted); font-size: 14px; }
     .wrap { display: grid; place-items: start center; padding: 32px 16px; }
     .card { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 14px; }
     h1 { font-size: 22px; margin: 0; }
@@ -48,7 +41,6 @@ import { AuthService } from '../../core/auth.service';
   `,
 })
 export class Upload {
-  protected auth = inject(AuthService);
   private api = inject(ApiService);
   private router = inject(Router);
 

@@ -11,6 +11,10 @@ export interface Wall {
   points: Pt[];
   brushSize?: number;
   colorId?: string;
+  /** When set, the wall is covered with this tiled pattern instead of a solid colour. */
+  patternId?: string;
+  patternUrl?: string;
+  patternScale?: number;
   hex: string;
   opacity: number;
   finish: Finish;
@@ -43,6 +47,24 @@ export class PaintEngine {
   private lum!: Float32Array;
   private mask = document.createElement('canvas');
   private maskCtx!: CanvasRenderingContext2D;
+  private patterns = new Map<string, HTMLImageElement>();
+  private patCanvas = document.createElement('canvas');
+  private patCtx!: CanvasRenderingContext2D;
+
+  /** Preloads a pattern tile; walls using it render once it has resolved. */
+  loadPattern(url: string): Promise<void> {
+    if (this.patterns.has(url)) return Promise.resolve();
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        this.patterns.set(url, img);
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = url;
+    });
+  }
 
   load(img: HTMLImageElement, maxWidth = 1600) {
     const scale = Math.min(1, maxWidth / img.naturalWidth);
@@ -61,6 +83,25 @@ export class PaintEngine {
       this.lum[i] = (0.2126 * d[i * 4] + 0.7152 * d[i * 4 + 1] + 0.0722 * d[i * 4 + 2]) / 255;
     }
     this.maskCtx = this.mask.getContext('2d', { willReadFrequently: true })!;
+    this.patCanvas.width = this.width;
+    this.patCanvas.height = this.height;
+    this.patCtx = this.patCanvas.getContext('2d', { willReadFrequently: true })!;
+  }
+
+  /** Tiles the wall's pattern over its bounding box and returns the pixels, or null if not loaded. */
+  private patternPixels(wall: Wall, x0: number, y0: number, bw: number, bh: number): Uint8ClampedArray | null {
+    const img = wall.patternUrl ? this.patterns.get(wall.patternUrl) : undefined;
+    if (!img) return null;
+    const tile = (this.width / 6) * (wall.patternScale ?? 1);
+    const s = tile / img.naturalWidth;
+    const ctx = this.patCtx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, this.width, this.height);
+    ctx.setTransform(s, 0, 0, s, 0, 0);
+    ctx.fillStyle = ctx.createPattern(img, 'repeat')!;
+    ctx.fillRect(x0 / s, y0 / s, bw / s + 1, bh / s + 1);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    return ctx.getImageData(x0, y0, bw, bh).data;
   }
 
   /** Renders the painted image. `compareX` shows the original to the left of that x. */
@@ -121,13 +162,18 @@ export class PaintEngine {
     if (!weight) return;
     const avg = Math.max(sum / weight, 0.05);
 
-    const [r, g, b] = hexToRgb(wall.hex);
+    const [r0, g0, b0] = hexToRgb(wall.hex);
+    const pat = wall.patternUrl ? this.patternPixels(wall, x0, y0, bw, bh) : null;
     const contrast = CONTRAST[wall.finish];
     const od = out.data;
     for (let j = 0; j < bh; j++) {
       for (let i = 0; i < bw; i++) {
         const a = (m[(j * bw + i) * 4 + 3] / 255) * wall.opacity;
         if (a <= 0) continue;
+        const pi = (j * bw + i) * 4;
+        const r = pat ? pat[pi] : r0;
+        const g = pat ? pat[pi + 1] : g0;
+        const b = pat ? pat[pi + 2] : b0;
         const l = this.lum[(y0 + j) * W + x0 + i];
         let ratio = 1 + (l / avg - 1) * contrast;
         ratio = Math.min(1.9, Math.max(0.3, ratio));

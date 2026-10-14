@@ -2,7 +2,7 @@ import { Component, ElementRef, HostListener, OnDestroy, OnInit, computed, effec
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ApiService } from '../core/api.service';
-import { Color, Finish, WallDto } from '../core/models';
+import { Color, Finish, Pattern, WallDto } from '../core/models';
 import { PaintEngine, Pt, Wall, tracePath } from './paint-engine';
 
 type Tool = 'select' | 'polygon' | 'brush';
@@ -16,7 +16,7 @@ const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
   styleUrl: './editor.scss',
 })
 export class Editor implements OnInit, OnDestroy {
-  private api = inject(ApiService);
+  protected api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private engine = new PaintEngine();
   private mainRef = viewChild.required<ElementRef<HTMLCanvasElement>>('main');
@@ -35,6 +35,11 @@ export class Editor implements OnInit, OnDestroy {
     const q = this.query().trim().toLowerCase();
     return q ? this.colors().filter((c) => c.name.toLowerCase().includes(q)) : this.colors();
   });
+
+  readonly patterns = signal<Pattern[]>([]);
+  readonly panelTab = signal<'colours' | 'patterns'>('colours');
+  readonly currentPattern = signal<Pattern | null>(null);
+  readonly patternScale = signal(1);
 
   readonly walls = signal<Wall[]>([]);
   readonly selectedId = signal<string | null>(null);
@@ -75,14 +80,17 @@ export class Editor implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.projectId = this.route.snapshot.paramMap.get('id')!;
-    forkJoin({ project: this.api.getProject(this.projectId), colors: this.api.colors() }).subscribe({
-      next: ({ project, colors }) => {
+    forkJoin({ project: this.api.getProject(this.projectId), colors: this.api.colors(), patterns: this.api.patterns() }).subscribe({
+      next: ({ project, colors, patterns }) => {
         this.colors.set(colors);
+        this.patterns.set(patterns);
         this.currentColor.set(colors[0] ?? null);
         this.title.set(project.project.title);
         this.disclaimer.set(project.disclaimer);
-        this.loadImage(this.api.imageUrl(project.project.originalImageUrl), () => {
+        this.loadImage(this.api.imageUrl(project.project.originalImageUrl), async () => {
           const byId = new Map(colors.map((c) => [c._id, c]));
+          const patById = new Map(patterns.map((p) => [p._id, p]));
+          await Promise.all(patterns.map((p) => this.engine.loadPattern(this.api.imageUrl(p.imageUrl))));
           this.walls.set(
             project.project.walls.map((w) => ({
               id: w._id ?? crypto.randomUUID(),
@@ -90,6 +98,9 @@ export class Editor implements OnInit, OnDestroy {
               points: w.points.map((p) => ({ x: p.x, y: p.y })),
               brushSize: w.brushSize,
               colorId: w.colorId,
+              patternId: w.patternId,
+              patternUrl: w.patternId && patById.get(w.patternId) ? this.api.imageUrl(patById.get(w.patternId)!.imageUrl) : undefined,
+              patternScale: w.patternScale ?? 1,
               hex: byId.get(w.colorId ?? '')?.hex ?? '#4F86C6',
               opacity: w.opacity ?? 0.85,
               finish: w.finish ?? 'matte',
@@ -292,12 +303,16 @@ export class Editor implements OnInit, OnDestroy {
 
   private addWall(type: 'polygon' | 'brush', points: Pt[]) {
     const c = this.currentColor();
+    const pat = this.panelTab() === 'patterns' ? this.currentPattern() : null;
     const wall: Wall = {
       id: crypto.randomUUID(),
       type,
       points,
       brushSize: type === 'brush' ? this.brushSize() : undefined,
       colorId: c?._id,
+      patternId: pat?._id,
+      patternUrl: pat ? this.api.imageUrl(pat.imageUrl) : undefined,
+      patternScale: this.patternScale(),
       hex: c?.hex ?? '#4F86C6',
       opacity: this.opacity(),
       finish: this.finish(),
@@ -329,16 +344,41 @@ export class Editor implements OnInit, OnDestroy {
       this.opacity.set(w.opacity);
       this.finish.set(w.finish);
       this.currentColor.set(this.colors().find((c) => c._id === w.colorId) ?? this.currentColor());
+      this.patternScale.set(w.patternScale ?? 1);
+      const pat = this.patterns().find((p) => p._id === w.patternId) ?? null;
+      this.currentPattern.set(pat);
+      this.panelTab.set(pat ? 'patterns' : 'colours');
     }
   }
 
   pickColor(c: Color) {
     this.currentColor.set(c);
+    this.panelTab.set('colours');
     const id = this.selectedId();
     if (id) {
-      this.walls.update((ws) => ws.map((w) => (w.id === id ? { ...w, colorId: c._id, hex: c.hex } : w)));
+      this.walls.update((ws) =>
+        ws.map((w) => (w.id === id ? { ...w, colorId: c._id, hex: c.hex, patternId: undefined, patternUrl: undefined } : w))
+      );
       this.commit();
     }
+  }
+
+  pickPattern(p: Pattern) {
+    this.currentPattern.set(p);
+    this.panelTab.set('patterns');
+    const url = this.api.imageUrl(p.imageUrl);
+    const id = this.selectedId();
+    if (id) {
+      this.walls.update((ws) => ws.map((w) => (w.id === id ? { ...w, patternId: p._id, patternUrl: url } : w)));
+      this.commit();
+    }
+  }
+
+  setPatternScale(v: number, final: boolean) {
+    this.patternScale.set(v);
+    const id = this.selectedId();
+    if (id) this.walls.update((ws) => ws.map((w) => (w.id === id && w.patternUrl ? { ...w, patternScale: v } : w)));
+    if (final && id) this.commit();
   }
 
   setOpacity(v: number, final: boolean) {
@@ -427,6 +467,8 @@ export class Editor implements OnInit, OnDestroy {
       points: w.points.map((p) => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 })),
       brushSize: w.brushSize,
       colorId: w.colorId,
+      patternId: w.patternId,
+      patternScale: w.patternScale,
       opacity: w.opacity,
       finish: w.finish,
     }));

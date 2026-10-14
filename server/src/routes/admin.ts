@@ -5,6 +5,7 @@ import { Project } from '../models/Project.js';
 import { Session } from '../models/Session.js';
 import { Feedback } from '../models/Feedback.js';
 import { Setting } from '../models/Setting.js';
+import { removeImage } from '../middleware/upload.js';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -13,7 +14,8 @@ router.use(requireAuth, requireAdmin);
 router.get('/stats', async (_req, res) => {
   const [users, imagesUploaded, designsSaved, sessions, feedback] = await Promise.all([
     User.countDocuments(),
-    Project.countDocuments(),
+    // Duplicated designs reuse the same photo, so count distinct uploaded photos.
+    Project.distinct('originalImageUrl').then((urls) => urls.length),
     Project.countDocuments({ 'walls.0': { $exists: true } }),
     Session.aggregate([{ $group: { _id: null, avg: { $avg: '$seconds' } } }]),
     Feedback.aggregate([{ $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } }]),
@@ -39,7 +41,39 @@ router.get('/projects', async (_req, res) => {
   res.json(await Project.find().sort({ updatedAt: -1 }).limit(200).populate('owner', 'name email'));
 });
 
-router.get('/settings', async (_req, res) => res.json(await Setting.find()));
+router.delete('/projects/:id', async (req, res) => {
+  const project = await Project.findByIdAndDelete(req.params.id);
+  if (!project) return res.status(404).json({ message: 'Project not found' });
+  const shared = await Project.countDocuments({ originalImageUrl: project.originalImageUrl });
+  if (!shared) removeImage(project.originalImageUrl);
+  removeImage(project.resultImageUrl);
+  res.status(204).end();
+});
+
+// Uploads and saved designs per day for the last 14 days (UTC).
+router.get('/timeline', async (_req, res) => {
+  const start = new Date(Date.now() - 13 * 86400000);
+  start.setUTCHours(0, 0, 0, 0);
+  const rows = await Project.aggregate([
+    { $match: { createdAt: { $gte: start } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        uploads: { $sum: 1 },
+        saved: { $sum: { $cond: [{ $gt: [{ $size: '$walls' }, 0] }, 1, 0] } },
+      },
+    },
+  ]);
+  const byDay = new Map(rows.map((r) => [r._id as string, r]));
+  res.json(
+    Array.from({ length: 14 }, (_, i) => {
+      const day = new Date(start.getTime() + i * 86400000).toISOString().slice(0, 10);
+      return { day, uploads: byDay.get(day)?.uploads ?? 0, saved: byDay.get(day)?.saved ?? 0 };
+    })
+  );
+});
+
+router.get('/settings',async (_req, res) => res.json(await Setting.find()));
 router.put('/settings/:key', async (req, res) => {
   res.json(
     await Setting.findOneAndUpdate({ key: req.params.key }, { value: req.body?.value }, { upsert: true, new: true })

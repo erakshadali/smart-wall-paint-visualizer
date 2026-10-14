@@ -71,10 +71,29 @@ router.post('/:id/result', imageUpload, async (req: AuthRequest, res) => {
   res.json({ project });
 });
 
+// Copy a design (same photo, same walls) to try another colour scheme.
+router.post('/:id/duplicate', async (req: AuthRequest, res) => {
+  const project = await ownProject(req, res);
+  if (!project) return;
+  const walls = project.walls.map((w) => {
+    const { _id, ...rest } = w.toObject();
+    return rest;
+  });
+  const copy = await Project.create({
+    owner: project.owner,
+    title: `${project.title} (copy)`.slice(0, 80),
+    originalImageUrl: project.originalImageUrl,
+    walls,
+  });
+  res.status(201).json({ project: copy });
+});
+
 router.delete('/:id', async (req: AuthRequest, res) => {
   const project = await ownProject(req, res);
   if (!project) return;
-  removeImage(project.originalImageUrl);
+  // The original photo may be shared with duplicated designs.
+  const shared = await Project.countDocuments({ originalImageUrl: project.originalImageUrl, _id: { $ne: project._id } });
+  if (!shared) removeImage(project.originalImageUrl);
   removeImage(project.resultImageUrl);
   await project.deleteOne();
   res.status(204).end();

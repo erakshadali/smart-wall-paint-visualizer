@@ -1,5 +1,5 @@
 <header class="bar">
-  <a routerLink="/upload" class="back" aria-label="Back to upload">&larr;</a>
+  <a routerLink="/designs" class="back" aria-label="Back to my designs">&larr;</a>
   <input class="title" [value]="title()" (input)="onTitle($event)" aria-label="Design title" maxlength="80" />
   <div class="spacer"></div>
   <button class="btn ghost" (click)="undo()" [disabled]="!canUndo()" title="Undo (Ctrl+Z)">Undo</button>
@@ -60,7 +60,11 @@
   </section>
 
   <aside class="panel" aria-label="Paint options">
-    <h2>Colour</h2>
+    <div class="seg tabs" role="tablist">
+      <button role="tab" [class.on]="panelTab() === 'colours'" (click)="panelTab.set('colours')">Colours</button>
+      <button role="tab" [class.on]="panelTab() === 'patterns'" (click)="panelTab.set('patterns')">Patterns</button>
+    </div>
+    @if (panelTab() === 'colours') {
     <input class="search" type="search" placeholder="Search colours" [value]="query()" (input)="query.set($any($event.target).value)" />
     <div class="swatches">
       @for (c of filteredColors(); track c._id) {
@@ -76,6 +80,33 @@
     </div>
     @if (currentColor(); as c) {
       <p class="picked"><span class="dot" [style.background]="c.hex"></span>{{ c.name }} <small>{{ c.hex }}</small></p>
+    }
+    } @else {
+      <div class="pats">
+        @for (p of patterns(); track p._id) {
+          <button
+            class="pat"
+            [class.on]="currentPattern()?._id === p._id"
+            [style.background-image]="'url(' + api.imageUrl(p.imageUrl) + ')'"
+            [title]="p.name"
+            [attr.aria-label]="p.name"
+            (click)="pickPattern(p)"
+          ></button>
+        } @empty {
+          <p class="muted">No patterns yet. An admin can add some.</p>
+        }
+      </div>
+      @if (currentPattern(); as p) {
+        <p class="picked">{{ p.name }} <small>{{ p.style }}</small></p>
+        <label class="field">
+          Pattern size {{ patternScale().toFixed(1) }}x
+          <input
+            type="range" min="0.3" max="3" step="0.1" [value]="patternScale()"
+            (input)="setPatternScale(+$any($event.target).value, false)"
+            (change)="setPatternScale(+$any($event.target).value, true)"
+          />
+        </label>
+      }
     }
 
     <label class="field">

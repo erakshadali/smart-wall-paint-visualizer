@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from './models/User.js';
 import { Color } from './models/Color.js';
+import { Pattern } from './models/Pattern.js';
+import { PATTERN_SEEDS } from './pattern-png.js';
+import { UPLOAD_DIR } from './middleware/upload.js';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const palette: [string, string, string[]][] = [
   ['Ocean Breeze Blue', '#4F86C6', ['Living Room', 'Bedroom']], ['Sky Whisper', '#A9CCE3', ['Bedroom']],
@@ -28,10 +33,23 @@ const palette: [string, string, string[]][] = [
 ];
 
 await mongoose.connect(process.env.MONGODB_URI!);
-await Color.deleteMany({ brand: 'Seed Palette' });
-await Color.insertMany(
-  palette.map(([name, hex, tags]) => ({ name, hex, tags, brand: 'Seed Palette', finishes: ['matte', 'satin', 'glossy'] }))
+// Upsert by name so re-seeding keeps colour ids stable (saved designs reference them).
+await Color.bulkWrite(
+  palette.map(([name, hex, tags]) => ({
+    updateOne: {
+      filter: { name, brand: 'Seed Palette' },
+      update: { $set: { hex, tags, finishes: ['matte', 'satin', 'glossy'] } },
+      upsert: true,
+    },
+  }))
 );
+
+for (const seed of PATTERN_SEEDS) {
+  if (await Pattern.findOne({ name: seed.name })) continue;
+  const file = `seed-${seed.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+  fs.writeFileSync(path.join(UPLOAD_DIR, file), seed.build());
+  await Pattern.create({ name: seed.name, style: seed.style, description: seed.description, imageUrl: `/uploads/${file}`, scale: 1 });
+}
 
 const email = process.env.ADMIN_EMAIL ?? 'admin@example.com';
 if (!(await User.findOne({ email }))) {
