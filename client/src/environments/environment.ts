@@ -1,4 +1,4 @@
-// Production build. Set apiUrl to your deployed API (e.g. your Render URL) before deploying.
+// Production build: the deployed API on Vercel.
 export const environment = {
-  apiUrl: 'https://YOUR-API-NAME.onrender.com',
+  apiUrl: 'https://smart-wall-paint-visualizer-api.vercel.app',
 };

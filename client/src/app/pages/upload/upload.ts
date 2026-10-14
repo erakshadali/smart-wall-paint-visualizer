@@ -72,15 +72,28 @@ export class Upload {
     });
   }
 
-  submit(e: Event) {
+  /** Shrinks big photos in the browser (the editor works at 1600 px anyway) so uploads stay small and fast. */
+  private async shrink(file: File): Promise<Blob> {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / bitmap.width);
+    if (scale === 1 && file.size <= 3 * 1024 * 1024) return file;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? file), 'image/jpeg', 0.9));
+  }
+
+  async submit(e: Event) {
     e.preventDefault();
     const f = this.file();
     if (!f || !this.owned()) return;
+    this.busy.set(true);
+    const image = await this.shrink(f).catch(() => f);
     const form = new FormData();
     form.append('title', this.title());
     form.append('confirmOwnership', 'true');
-    form.append('image', f);
-    this.busy.set(true);
+    form.append('image', image, image === f ? f.name : 'room.jpg');
     this.api.createProject(form).subscribe({
       next: (r) => this.router.navigate(['/editor', r.project._id]),
       error: (err) => {

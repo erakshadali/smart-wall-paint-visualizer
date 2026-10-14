@@ -4,3 +4,6 @@ dist
 uploads
 .angular
 *.log
+.admin-password.txt
+.vercel
+.env.local
