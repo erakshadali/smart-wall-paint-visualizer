@@ -5,7 +5,7 @@ import { User } from './models/User.js';
 import { Color } from './models/Color.js';
 import { Pattern } from './models/Pattern.js';
 import { PATTERN_SEEDS } from './pattern-png.js';
-import { UPLOAD_DIR } from './middleware/upload.js';
+import { storeImage } from './middleware/upload.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -46,9 +46,14 @@ await Color.bulkWrite(
 
 for (const seed of PATTERN_SEEDS) {
   if (await Pattern.findOne({ name: seed.name })) continue;
-  const file = `seed-${seed.name.toLowerCase().replace(/\s+/g, '-')}.png`;
-  fs.writeFileSync(path.join(UPLOAD_DIR, file), seed.build());
-  await Pattern.create({ name: seed.name, style: seed.style, description: seed.description, imageUrl: `/uploads/${file}`, scale: 1 });
+  const imageUrl = await storeImage(seed.build(), `seed-${seed.name.toLowerCase().replace(/\s+/g, '-')}.png`);
+  await Pattern.create({ name: seed.name, style: seed.style, description: seed.description, imageUrl, scale: 1 });
+}
+
+// One-time import of images saved on local disk by earlier versions.
+const legacyDir = path.resolve('uploads');
+if (fs.existsSync(legacyDir)) {
+  for (const f of fs.readdirSync(legacyDir)) await storeImage(fs.readFileSync(path.join(legacyDir, f)), f);
 }
 
 const email = process.env.ADMIN_EMAIL ?? 'admin@example.com';

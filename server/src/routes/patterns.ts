@@ -11,7 +11,7 @@ router.post('/', requireAuth, requireAdmin, imageUpload, async (req, res) => {
   const { name, description, style, scale } = req.body ?? {};
   if (!name || !req.file) return res.status(400).json({ message: 'name and pattern image are required' });
   res.status(201).json(
-    await Pattern.create({ name, description, style, scale: Number(scale) || 1, imageUrl: saveImage(req.file) })
+    await Pattern.create({ name, description, style, scale: Number(scale) || 1, imageUrl: await saveImage(req.file) })
   );
 });
 
@@ -24,7 +24,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   const pattern = await Pattern.findByIdAndDelete(req.params.id);
   if (!pattern) return res.status(404).json({ message: 'Pattern not found' });
-  removeImage(pattern.imageUrl);
+  await removeImage(pattern.imageUrl);
   res.status(204).end();
 });
 

@@ -28,7 +28,7 @@ router.post('/', imageUpload, async (req: AuthRequest, res) => {
   const project = await Project.create({
     owner: req.user!.id,
     title: String(req.body.title ?? 'Untitled design').slice(0, 80),
-    originalImageUrl: saveImage(req.file),
+    originalImageUrl: await saveImage(req.file),
   });
   res.status(201).json({ project, disclaimer: DISCLAIMER });
 });
@@ -65,8 +65,8 @@ router.post('/:id/result', imageUpload, async (req: AuthRequest, res) => {
   const project = await ownProject(req, res);
   if (!project) return;
   if (!req.file) return res.status(400).json({ message: 'Image is required' });
-  removeImage(project.resultImageUrl);
-  project.resultImageUrl = saveImage(req.file);
+  await removeImage(project.resultImageUrl);
+  project.resultImageUrl = await saveImage(req.file);
   await project.save();
   res.json({ project });
 });
@@ -93,8 +93,8 @@ router.delete('/:id', async (req: AuthRequest, res) => {
   if (!project) return;
   // The original photo may be shared with duplicated designs.
   const shared = await Project.countDocuments({ originalImageUrl: project.originalImageUrl, _id: { $ne: project._id } });
-  if (!shared) removeImage(project.originalImageUrl);
-  removeImage(project.resultImageUrl);
+  if (!shared) await removeImage(project.originalImageUrl);
+  await removeImage(project.resultImageUrl);
   await project.deleteOne();
   res.status(204).end();
 });

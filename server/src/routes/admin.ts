@@ -45,8 +45,8 @@ router.delete('/projects/:id', async (req, res) => {
   const project = await Project.findByIdAndDelete(req.params.id);
   if (!project) return res.status(404).json({ message: 'Project not found' });
   const shared = await Project.countDocuments({ originalImageUrl: project.originalImageUrl });
-  if (!shared) removeImage(project.originalImageUrl);
-  removeImage(project.resultImageUrl);
+  if (!shared) await removeImage(project.originalImageUrl);
+  await removeImage(project.resultImageUrl);
   res.status(204).end();
 });
 

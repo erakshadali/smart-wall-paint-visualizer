@@ -58,6 +58,14 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
   .row { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font-size: 14px; small { color: var(--muted); margin-left: auto; } }
   .del { border: 0; background: transparent; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 10px; &:hover { color: #d33; } } }
 
+@media (max-width: 640px) {
+  .bar { flex-wrap: wrap; padding: 8px 12px; }
+  .title { flex: 1; width: auto; max-width: none; }
+  .spacer { display: none; }
+  .bar .btn { padding: 7px 12px; font-size: 13px; }
+  .stage { padding: 10px; }
+}
+
 @media (max-width: 1000px) {
   :host { height: auto; min-height: 100vh; }
   .layout { grid-template-columns: 1fr; }
