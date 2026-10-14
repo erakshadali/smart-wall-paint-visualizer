@@ -5,6 +5,11 @@ before painting. Built as a Unified Mentor Full-stack Web Development internship
 
 > Colours shown are a preview. Final results may vary due to lighting, screen calibration and wall texture.
 
+## Live demo
+
+- App: https://smart-wall-paint-visualizer-zeta.vercel.app
+- API: https://smart-wall-paint-visualizer-api.vercel.app/api/health
+
 ## Features
 
 **Users**
@@ -28,7 +33,7 @@ before painting. Built as a Unified Mentor Full-stack Web Development internship
 | Frontend | Angular 20, TypeScript, SCSS, HTML5 Canvas |
 | Backend | Node.js, Express 5, TypeScript, REST API, JWT |
 | Database | MongoDB (Mongoose): users, projects, colours, patterns, images, sessions, feedback |
-| Hosting | Vercel (client), Render (API), MongoDB Atlas (database) |
+| Hosting | Vercel (client and API), MongoDB Atlas (database) |
 
 ## Project structure
 
@@ -132,20 +137,16 @@ A wall looks like:
 - Helmet, CORS allow-list, rate limiting, request body size limits
 - Users must confirm they own the photo they upload
 
-## Deploy
+## Deploy (Vercel)
 
-1. **Database**: create a free MongoDB Atlas cluster and a database user, and allow network access for your host
-   (Atlas, Network Access). Copy the connection string and add the database name (`/wall-paint-visualizer`).
-2. **API on Render**: push the repo to GitHub, create a Render *Blueprint* from `render.yaml`, and set
-   `MONGODB_URI` and `CLIENT_URL` (your Vercel URL). Run `npm run seed` once against the same `MONGODB_URI`
-   (locally is fine). Note the API URL, e.g. `https://wall-paint-visualizer-api.onrender.com`.
-3. **Client on Vercel**: import the repo with *Root Directory* `client`. Before deploying, set `apiUrl` in
-   `client/src/environments/environment.ts` to your API URL. `client/vercel.json` already handles the Angular
-   build output and single-page routing.
-4. Add the final Vercel URL to `CLIENT_URL` on Render, then redeploy the API.
-5. Log in as the admin, change the admin password, and check the dashboard.
+The client and the API are two Vercel projects, both deployed with the Vercel CLI (`vercel deploy --prod`).
 
-On Render's free plan the API sleeps when idle, so the first request after a break can take about 30 seconds.
+1. **Database**: create a free MongoDB Atlas cluster and a database user. Under Network Access, add `0.0.0.0/0` so Vercel's changing IP addresses can connect (the database is still protected by its username and password). Copy the connection string and add the database name.
+2. **API**: in `server/`, run `vercel link`, add the environment variables `MONGODB_URI`, `JWT_SECRET` and `CLIENT_URL` (the client URL), then `vercel deploy --prod`. `server/vercel.json` and `server/api/index.js` run the compiled Express app as a serverless function. Run `npm run seed` once, then `npm run reset-admin` to replace the default admin password.
+3. **Client**: set `apiUrl` in `client/src/environments/environment.ts` to the API URL, then in `client/` run `vercel link` and `vercel deploy --prod`. `client/vercel.json` handles the Angular build output and single-page routing.
+4. Make sure `CLIENT_URL` on the API matches the final client URL, and redeploy the API if you change it.
+
+Notes: Vercel limits request bodies to 4.5 MB, so the upload page shrinks large photos in the browser before sending them. Photos are stored in MongoDB, so nothing depends on local disk.
 
 ## Scripts
 
@@ -154,6 +155,7 @@ On Render's free plan the API sleeps when idle, so the first request after a bre
 | server | `npm run dev` | API with auto-reload |
 | server | `npm run build` / `npm start` | Compile and run in production |
 | server | `npm run seed` | Seed colours, patterns and the admin account (safe to re-run) |
+| server | `ADMIN_NEW_PASSWORD=... npm run reset-admin` | Replace the admin password (12+ characters) |
 | client | `npm start` | Dev server on port 4200 |
 | client | `npm run build` | Production build into `dist/client/browser` |
 
