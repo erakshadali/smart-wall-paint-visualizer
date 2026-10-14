@@ -5,6 +5,10 @@ before painting. Built as a Unified Mentor Full-stack Web Development internship
 
 > Colours shown are a preview. Final results may vary due to lighting, screen calibration and wall texture.
 
+## Project report
+
+[Detailed project report (PDF)](docs/Project-Report.pdf)
+
 ## Live demo
 
 - App: https://smart-wall-paint-visualizer-zeta.vercel.app
