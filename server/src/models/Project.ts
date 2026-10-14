@@ -7,6 +7,7 @@ const wallSchema = new Schema({
   colorId: { type: Schema.Types.ObjectId, ref: 'Color' },
   patternId: { type: Schema.Types.ObjectId, ref: 'Pattern' },
   patternScale: { type: Number, default: 1, min: 0.2, max: 4 },
+  brightness: { type: Number, default: 1, min: 0.5, max: 1.5 },
   opacity: { type: Number, default: 0.8, min: 0, max: 1 },
   finish: { type: String, enum: ['matte', 'satin', 'glossy'], default: 'matte' },
 });

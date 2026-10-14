@@ -15,6 +15,8 @@ export interface Wall {
   patternId?: string;
   patternUrl?: string;
   patternScale?: number;
+  /** Brightness level of the applied paint (1 = as picked). */
+  brightness?: number;
   hex: string;
   opacity: number;
   finish: Finish;
@@ -165,6 +167,7 @@ export class PaintEngine {
     const [r0, g0, b0] = hexToRgb(wall.hex);
     const pat = wall.patternUrl ? this.patternPixels(wall, x0, y0, bw, bh) : null;
     const contrast = CONTRAST[wall.finish];
+    const bright = wall.brightness ?? 1;
     const od = out.data;
     for (let j = 0; j < bh; j++) {
       for (let i = 0; i < bw; i++) {
@@ -175,8 +178,8 @@ export class PaintEngine {
         const g = pat ? pat[pi + 1] : g0;
         const b = pat ? pat[pi + 2] : b0;
         const l = this.lum[(y0 + j) * W + x0 + i];
-        let ratio = 1 + (l / avg - 1) * contrast;
-        ratio = Math.min(1.9, Math.max(0.3, ratio));
+        let ratio = (1 + (l / avg - 1) * contrast) * bright;
+        ratio = Math.min(2.2, Math.max(0.25, ratio));
         const spec = wall.finish === 'glossy' && l > 0.82 ? ((l - 0.82) / 0.18) * 55 : 0;
         const idx = ((y0 + j) * W + x0 + i) * 4;
         od[idx] = od[idx] * (1 - a) + Math.min(255, r * ratio + spec) * a;

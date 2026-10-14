@@ -66,6 +66,10 @@
     </div>
     @if (panelTab() === 'colours') {
     <input class="search" type="search" placeholder="Search colours" [value]="query()" (input)="query.set($any($event.target).value)" />
+    <label class="check favfilter">
+      <input type="checkbox" [checked]="favOnly()" (change)="favOnly.set($any($event.target).checked)" />
+      Favourites only ({{ favourites().size }})
+    </label>
     <div class="swatches">
       @for (c of filteredColors(); track c._id) {
         <button
@@ -79,7 +83,14 @@
       }
     </div>
     @if (currentColor(); as c) {
-      <p class="picked"><span class="dot" [style.background]="c.hex"></span>{{ c.name }} <small>{{ c.hex }}</small></p>
+      <p class="picked">
+        <span class="dot" [style.background]="c.hex"></span>{{ c.name }} <small>{{ c.hex }}</small>
+        <button
+          class="fav" [class.on]="favourites().has(c._id)" (click)="toggleFavourite(c)"
+          [attr.aria-pressed]="favourites().has(c._id)"
+          [attr.aria-label]="favourites().has(c._id) ? 'Remove from favourites' : 'Add to favourites'"
+        >&#9829;</button>
+      </p>
     }
     } @else {
       <div class="pats">
@@ -108,6 +119,15 @@
         </label>
       }
     }
+
+    <label class="field">
+      Brightness {{ (brightness() * 100).toFixed(0) }}%
+      <input
+        type="range" min="0.6" max="1.4" step="0.05" [value]="brightness()"
+        (input)="setBrightness(+$any($event.target).value, false)"
+        (change)="setBrightness(+$any($event.target).value, true)"
+      />
+    </label>
 
     <label class="field">
       Opacity {{ (opacity() * 100).toFixed(0) }}%

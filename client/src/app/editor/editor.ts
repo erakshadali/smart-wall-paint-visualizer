@@ -31,10 +31,14 @@ export class Editor implements OnInit, OnDestroy {
 
   readonly colors = signal<Color[]>([]);
   readonly query = signal('');
+  readonly favourites = signal<Set<string>>(new Set());
+  readonly favOnly = signal(false);
   readonly filteredColors = computed(() => {
     const q = this.query().trim().toLowerCase();
-    return q ? this.colors().filter((c) => c.name.toLowerCase().includes(q)) : this.colors();
+    const favs = this.favourites();
+    return this.colors().filter((c) => (!q || c.name.toLowerCase().includes(q)) && (!this.favOnly() || favs.has(c._id)));
   });
+  readonly brightness = signal(1);
 
   readonly patterns = signal<Pattern[]>([]);
   readonly panelTab = signal<'colours' | 'patterns'>('colours');
@@ -80,8 +84,14 @@ export class Editor implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.projectId = this.route.snapshot.paramMap.get('id')!;
-    forkJoin({ project: this.api.getProject(this.projectId), colors: this.api.colors(), patterns: this.api.patterns() }).subscribe({
-      next: ({ project, colors, patterns }) => {
+    forkJoin({
+      project: this.api.getProject(this.projectId),
+      colors: this.api.colors(),
+      patterns: this.api.patterns(),
+      me: this.api.me(),
+    }).subscribe({
+      next: ({ project, colors, patterns, me }) => {
+        this.favourites.set(new Set(me.favouriteColors.map((c) => c._id)));
         this.colors.set(colors);
         this.patterns.set(patterns);
         this.currentColor.set(colors[0] ?? null);
@@ -101,6 +111,7 @@ export class Editor implements OnInit, OnDestroy {
               patternId: w.patternId,
               patternUrl: w.patternId && patById.get(w.patternId) ? this.api.imageUrl(patById.get(w.patternId)!.imageUrl) : undefined,
               patternScale: w.patternScale ?? 1,
+              brightness: w.brightness ?? 1,
               hex: byId.get(w.colorId ?? '')?.hex ?? '#4F86C6',
               opacity: w.opacity ?? 0.85,
               finish: w.finish ?? 'matte',
@@ -313,6 +324,7 @@ export class Editor implements OnInit, OnDestroy {
       patternId: pat?._id,
       patternUrl: pat ? this.api.imageUrl(pat.imageUrl) : undefined,
       patternScale: this.patternScale(),
+      brightness: this.brightness(),
       hex: c?.hex ?? '#4F86C6',
       opacity: this.opacity(),
       finish: this.finish(),
@@ -345,6 +357,7 @@ export class Editor implements OnInit, OnDestroy {
       this.finish.set(w.finish);
       this.currentColor.set(this.colors().find((c) => c._id === w.colorId) ?? this.currentColor());
       this.patternScale.set(w.patternScale ?? 1);
+      this.brightness.set(w.brightness ?? 1);
       const pat = this.patterns().find((p) => p._id === w.patternId) ?? null;
       this.currentPattern.set(pat);
       this.panelTab.set(pat ? 'patterns' : 'colours');
@@ -386,6 +399,28 @@ export class Editor implements OnInit, OnDestroy {
     const id = this.selectedId();
     if (id) this.walls.update((ws) => ws.map((w) => (w.id === id ? { ...w, opacity: v } : w)));
     if (final && id) this.commit();
+  }
+
+  setBrightness(v: number, final: boolean) {
+    this.brightness.set(v);
+    const id = this.selectedId();
+    if (id) this.walls.update((ws) => ws.map((w) => (w.id === id ? { ...w, brightness: v } : w)));
+    if (final && id) this.commit();
+  }
+
+  toggleFavourite(c: Color) {
+    this.favourites.update((s) => {
+      const next = new Set(s);
+      next.has(c._id) ? next.delete(c._id) : next.add(c._id);
+      return next;
+    });
+    this.api.toggleFavourite('colors', c._id).subscribe({
+      error: () => this.favourites.update((s) => {
+        const next = new Set(s);
+        next.has(c._id) ? next.delete(c._id) : next.add(c._id);
+        return next;
+      }),
+    });
   }
 
   setFinish(f: Finish) {
@@ -469,6 +504,7 @@ export class Editor implements OnInit, OnDestroy {
       colorId: w.colorId,
       patternId: w.patternId,
       patternScale: w.patternScale,
+      brightness: w.brightness,
       opacity: w.opacity,
       finish: w.finish,
     }));

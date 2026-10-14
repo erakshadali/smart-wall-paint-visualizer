@@ -56,6 +56,28 @@ export class ApiService {
     return this.http.delete<void>(this.url(`/projects/${id}`));
   }
 
+  // ---- favourites ----
+  me() {
+    return this.http.get<{ favouriteColors: Color[]; favouritePatterns: Pattern[] }>(this.url('/me'));
+  }
+
+  toggleFavourite(kind: 'colors' | 'patterns', id: string) {
+    return this.http.post<unknown>(this.url(`/me/favourites/${kind}/${id}`), {});
+  }
+
+  // ---- admin: settings and updates ----
+  adminSettings() {
+    return this.http.get<{ key: string; value: unknown }[]>(this.url('/admin/settings'));
+  }
+
+  saveSetting(key: string, value: unknown) {
+    return this.http.put<{ key: string; value: unknown }>(this.url(`/admin/settings/${encodeURIComponent(key)}`), { value });
+  }
+
+  updatePattern(id: string, body: Partial<Pattern>) {
+    return this.http.put<Pattern>(this.url(`/patterns/${id}`), body);
+  }
+
   // ---- user feedback / KPIs ----
   sendFeedback(rating: number, comment: string) {
     return this.http.post<void>(this.url('/me/feedback'), { rating, comment });

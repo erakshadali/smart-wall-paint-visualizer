@@ -4,7 +4,7 @@ import { ApiService } from '../core/api.service';
 import { AdminProject, AdminUser, Color, Pattern, Stats, TimelineDay } from '../core/models';
 import { Nav } from '../shared/nav';
 
-type Tab = 'dashboard' | 'colours' | 'patterns' | 'users' | 'designs';
+type Tab = 'dashboard' | 'colours' | 'patterns' | 'users' | 'designs' | 'settings';
 
 const W = 640;
 const H = 220;
@@ -26,6 +26,7 @@ export class Admin implements OnInit, OnDestroy {
     { id: 'patterns', label: 'Patterns' },
     { id: 'users', label: 'Users' },
     { id: 'designs', label: 'Designs' },
+    { id: 'settings', label: 'Settings' },
   ];
   readonly tab = signal<Tab>('dashboard');
   readonly msg = signal('');
@@ -42,6 +43,15 @@ export class Admin implements OnInit, OnDestroy {
   readonly users = signal<AdminUser[]>([]);
   readonly designs = signal<AdminProject[]>([]);
 
+  // system configuration
+  readonly settings = signal<{ key: string; value: unknown }[]>([]);
+  readonly sKey = signal('');
+  readonly sValue = signal('');
+  // inline editing of a colour or pattern
+  readonly editId = signal<string | null>(null);
+  readonly eName = signal('');
+  readonly eHex = signal('#000000');
+  readonly eStyle = signal('');
   // new colour form
   readonly cName = signal('');
   readonly cHex = signal('#4f86c6');
@@ -87,6 +97,8 @@ export class Admin implements OnInit, OnDestroy {
     this.tab.set(t);
     this.msg.set('');
     this.confirmId.set(null);
+    this.editId.set(null);
+    if (t === 'settings') this.api.adminSettings().subscribe((s) => this.settings.set(s));
     if (t === 'users') this.api.adminUsers().subscribe((u) => this.users.set(u));
     if (t === 'designs') this.api.adminProjects().subscribe((d) => this.designs.set(d));
     if (t === 'dashboard') this.loadDashboard();
@@ -104,6 +116,62 @@ export class Admin implements OnInit, OnDestroy {
 
   private fail(err: { error?: { message?: string } }) {
     this.msg.set(err.error?.message ?? 'Something went wrong.');
+  }
+
+  // ---- system configuration ----
+  saveSetting(e: Event) {
+    e.preventDefault();
+    const key = this.sKey().trim();
+    if (!key) return;
+    this.api.saveSetting(key, this.sValue()).subscribe({
+      next: (s) => {
+        this.settings.update((l) => [...l.filter((x) => x.key !== s.key), s].sort((a, b) => a.key.localeCompare(b.key)));
+        this.sKey.set('');
+        this.sValue.set('');
+        this.msg.set(`Saved setting ${s.key}.`);
+      },
+      error: (err) => this.fail(err),
+    });
+  }
+
+  editSetting(s: { key: string; value: unknown }) {
+    this.sKey.set(s.key);
+    this.sValue.set(String(s.value ?? ''));
+  }
+
+  // ---- inline edit (colours and patterns) ----
+  startEditColor(c: Color) {
+    this.editId.set(c._id);
+    this.eName.set(c.name);
+    this.eHex.set(c.hex);
+  }
+
+  saveColorEdit(c: Color) {
+    this.api.updateColor(c._id, { name: this.eName(), hex: this.eHex() }).subscribe({
+      next: (u) => {
+        this.colors.update((l) => l.map((x) => (x._id === u._id ? u : x)));
+        this.editId.set(null);
+        this.msg.set(`Updated ${u.name}.`);
+      },
+      error: (err) => this.fail(err),
+    });
+  }
+
+  startEditPattern(p: Pattern) {
+    this.editId.set(p._id);
+    this.eName.set(p.name);
+    this.eStyle.set(p.style ?? '');
+  }
+
+  savePatternEdit(p: Pattern) {
+    this.api.updatePattern(p._id, { name: this.eName(), style: this.eStyle() }).subscribe({
+      next: (u) => {
+        this.patterns.update((l) => l.map((x) => (x._id === u._id ? u : x)));
+        this.editId.set(null);
+        this.msg.set(`Updated ${u.name}.`);
+      },
+      error: (err) => this.fail(err),
+    });
   }
 
   // ---- colours ----

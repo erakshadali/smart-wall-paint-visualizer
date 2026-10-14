@@ -31,6 +31,7 @@ export interface WallDto {
   colorId?: string;
   patternId?: string;
   patternScale?: number;
+  brightness?: number;
   opacity: number;
   finish: Finish;
 }

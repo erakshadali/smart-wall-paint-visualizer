@@ -85,13 +85,21 @@
         <ul class="list">
           @for (c of colors(); track c._id) {
             <li>
+              @if (editId() === c._id) {
+                <input type="color" class="mini" [value]="eHex()" (input)="eHex.set($any($event.target).value)" aria-label="Colour" />
+                <input class="grow" [value]="eName()" (input)="eName.set($any($event.target).value)" aria-label="Colour name" />
+                <button class="btn primary" (click)="saveColorEdit(c)" [disabled]="!eName()">Save</button>
+                <button class="btn" (click)="editId.set(null)">Cancel</button>
+              } @else {
               <span class="dot" [style.background]="c.hex"></span>
               <span class="grow">{{ c.name }} <small>{{ c.hex }}</small></span>
+              <button class="btn" (click)="startEditColor(c)">Edit</button>
               @if (confirmId() === c._id) {
                 <button class="btn danger" (click)="removeColor(c)">Yes, delete</button>
                 <button class="btn" (click)="confirmId.set(null)">Cancel</button>
               } @else {
                 <button class="btn" (click)="confirmId.set(c._id)">Delete</button>
+              }
               }
             </li>
           }
@@ -113,12 +121,20 @@
           @for (p of patterns(); track p._id) {
             <li>
               <img class="tile" [src]="api.imageUrl(p.imageUrl)" [alt]="p.name" />
-              <span class="grow">{{ p.name }} <small>{{ p.style }}</small></span>
-              @if (confirmId() === p._id) {
-                <button class="btn danger" (click)="removePattern(p)">Yes, delete</button>
-                <button class="btn" (click)="confirmId.set(null)">Cancel</button>
+              @if (editId() === p._id) {
+                <input class="grow" [value]="eName()" (input)="eName.set($any($event.target).value)" aria-label="Pattern name" />
+                <input class="grow" [value]="eStyle()" (input)="eStyle.set($any($event.target).value)" aria-label="Pattern style" placeholder="Style" />
+                <button class="btn primary" (click)="savePatternEdit(p)" [disabled]="!eName()">Save</button>
+                <button class="btn" (click)="editId.set(null)">Cancel</button>
               } @else {
-                <button class="btn" (click)="confirmId.set(p._id)">Delete</button>
+                <span class="grow">{{ p.name }} <small>{{ p.style }}</small></span>
+                <button class="btn" (click)="startEditPattern(p)">Edit</button>
+                @if (confirmId() === p._id) {
+                  <button class="btn danger" (click)="removePattern(p)">Yes, delete</button>
+                  <button class="btn" (click)="confirmId.set(null)">Cancel</button>
+                } @else {
+                  <button class="btn" (click)="confirmId.set(p._id)">Delete</button>
+                }
               }
             </li>
           }
@@ -139,6 +155,28 @@
             </tbody>
           </table>
         </div>
+      </section>
+    }
+
+    @case ('settings') {
+      <form class="card form" (submit)="saveSetting($event)">
+        <h2>System configuration</h2>
+        <label>Setting name <input required placeholder="maxUploadMb" [value]="sKey()" (input)="sKey.set($any($event.target).value)" /></label>
+        <label>Value <input [value]="sValue()" (input)="sValue.set($any($event.target).value)" /></label>
+        <button class="btn primary" type="submit" [disabled]="!sKey()">Save setting</button>
+      </form>
+      <section class="card">
+        <h2>{{ settings().length }} settings</h2>
+        <ul class="list">
+          @for (s of settings(); track s.key) {
+            <li>
+              <span class="grow"><strong>{{ s.key }}</strong> <small>{{ s.value }}</small></span>
+              <button class="btn" (click)="editSetting(s)">Edit</button>
+            </li>
+          } @empty {
+            <li><span class="muted">No settings saved yet.</span></li>
+          }
+        </ul>
       </section>
     }
 

@@ -110,6 +110,20 @@ A wall looks like:
   "colorId": "…", "patternId": null, "patternScale": 1, "opacity": 0.85, "finish": "matte" }
 ```
 
+## Database schema (MongoDB collections)
+
+| Collection | Main fields |
+|------------|-------------|
+| `users` | name, email (unique), passwordHash, role (`user` / `admin`), favouriteColors[], favouritePatterns[], createdAt |
+| `projects` | owner, title, originalImageUrl, resultImageUrl, walls[], createdAt, updatedAt |
+| `projects.walls[]` | type (`polygon` / `brush`), points[{x, y}], brushSize, colorId, patternId, patternScale, brightness, opacity, finish |
+| `colors` | name, hex, brand, finishes[], tags[] (e.g. "Living Room", "Accent") |
+| `patterns` | name, description, style, imageUrl, scale |
+| `images` | name, contentType, data (uploaded photos and pattern tiles) |
+| `sessions` | user, seconds (feeds the average session duration KPI) |
+| `feedbacks` | user, rating (1-5), comment (feeds the satisfaction KPI) |
+| `settings` | key, value (system configuration managed by admins) |
+
 ## Security and data handling
 
 - Passwords hashed with bcrypt; JWT auth; role checks on admin routes; users can only access their own designs
