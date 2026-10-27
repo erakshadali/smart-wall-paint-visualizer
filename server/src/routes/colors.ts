@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { Color } from '../models/Color.js';
+import { edgeCache } from '../middleware/cache.js';
 
 const router = Router();
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-router.get('/', async (req, res) => {
+router.get('/', edgeCache, async (req, res) => {
   const { tag, q } = req.query;
   const filter: Record<string, unknown> = {};
   if (typeof tag === 'string') filter.tags = tag;

@@ -52,6 +52,6 @@ export const imageRouter = Router();
 imageRouter.get('/:name', async (req, res) => {
   const img = await Image.findOne({ name: req.params.name });
   if (!img) return res.status(404).json({ message: 'Image not found' });
-  res.set({ 'Content-Type': img.contentType, 'Cache-Control': 'public, max-age=31536000, immutable' });
+  res.set({ 'Content-Type': img.contentType, 'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable' });
   res.send(img.data);
 });

@@ -113,7 +113,7 @@
             [title]="p.name + (p.description ? ': ' + p.description : '')"
             (click)="pickPattern(p)"
           >
-            <span class="tile" [style.background-image]="'url(' + api.imageUrl(p.imageUrl) + ')'"></span>
+            <img class="tile" loading="lazy" decoding="async" alt="" [src]="api.imageUrl(p.imageUrl)" />
             <span class="pname">{{ p.name }}</span>
           </button>
         } @empty {

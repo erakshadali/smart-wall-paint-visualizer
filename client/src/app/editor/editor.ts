@@ -127,7 +127,9 @@ export class Editor implements OnInit, OnDestroy {
         this.loadImage(this.api.imageUrl(project.project.originalImageUrl), async () => {
           const byId = new Map(colors.map((c) => [c._id, c]));
           const patById = new Map(patterns.map((p) => [p._id, p]));
-          await Promise.all(patterns.map((p) => this.engine.loadPattern(this.api.imageUrl(p.imageUrl))));
+          // Only fetch the tiles this design actually uses; the rest load when a pattern is picked.
+          const used = new Set(project.project.walls.map((w) => w.patternId).filter(Boolean));
+          await Promise.all(patterns.filter((p) => used.has(p._id)).map((p) => this.engine.loadPattern(this.api.imageUrl(p.imageUrl))));
           this.walls.set(
             project.project.walls.map((w) => ({
               id: w._id ?? crypto.randomUUID(),
@@ -419,12 +421,13 @@ export class Editor implements OnInit, OnDestroy {
     }
   }
 
-  pickPattern(p: Pattern) {
+  async pickPattern(p: Pattern) {
     this.currentPattern.set(p);
     this.panelTab.set('patterns');
     const url = this.api.imageUrl(p.imageUrl);
     const scale = p.scale ?? 1;
     this.patternScale.set(scale);
+    await this.engine.loadPattern(url);
     const id = this.selectedId();
     if (id) {
       this.walls.update((ws) => ws.map((w) => (w.id === id ? { ...w, patternId: p._id, patternUrl: url, patternScale: scale, style: undefined } : w)));
@@ -433,13 +436,13 @@ export class Editor implements OnInit, OnDestroy {
   }
 
   /** Random pattern on the selected wall and a random colour on the other walls. */
-  surpriseMe() {
+  async surpriseMe() {
     const pick = surprise(this.patterns(), this.colors());
     if (!pick) return;
     const id = this.selectedId();
     this.currentColor.set(pick.color);
     if (id) {
-      this.pickPattern(pick.pattern);
+      await this.pickPattern(pick.pattern);
       if (this.walls().length > 1) {
         this.walls.update((ws) =>
           ws.map((w) => (w.id === id ? w : { ...w, colorId: pick.color._id, hex: pick.color.hex, patternId: undefined, patternUrl: undefined, style: undefined }))

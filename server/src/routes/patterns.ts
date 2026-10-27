@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { imageUpload, saveImage, removeImage } from '../middleware/upload.js';
 import { Pattern } from '../models/Pattern.js';
+import { edgeCache } from '../middleware/cache.js';
 
 const router = Router();
 
-router.get('/', async (_req, res) => res.json(await Pattern.find().sort({ name: 1 })));
+router.get('/', edgeCache, async (_req, res) => res.json(await Pattern.find().sort({ name: 1 })));
 
 router.post('/', requireAuth, requireAdmin, imageUpload, async (req, res) => {
   const { name, description, style, scale } = req.body ?? {};
