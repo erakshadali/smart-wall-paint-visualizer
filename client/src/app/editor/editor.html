@@ -49,6 +49,13 @@
         (pointerup)="onUp()"
         (dblclick)="onDouble()"
       ></canvas>
+      @if (tool() === 'polygon' && draftCount() > 0) {
+        <div class="draft-bar" role="group" aria-label="Outline controls">
+          <button class="btn" type="button" (click)="undoPoint()">&#8630; Back</button>
+          <button class="btn primary" type="button" (click)="finishDraft()" [disabled]="draftCount() < 3">&#10003; Finish</button>
+          <button class="btn" type="button" (click)="cancelDraft()">&#10005; Cancel</button>
+        </div>
+      }
     </div>
     @if (!ready()) {
       <p class="loading">{{ status() }}</p>

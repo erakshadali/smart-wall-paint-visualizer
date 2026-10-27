@@ -89,6 +89,8 @@ export class Editor implements OnInit, OnDestroy {
   readonly canRedo = signal(false);
 
   private draft: Pt[] = [];
+  /** Number of corner points placed so far for the wall being outlined (drives the Back / Finish / Cancel buttons). */
+  readonly draftCount = signal(0);
   private hover: Pt | null = null;
   private stroke: Pt[] = [];
   private brushing = false;
@@ -272,7 +274,8 @@ export class Editor implements OnInit, OnDestroy {
     if (tool === 'polygon') {
       if (this.draft.length >= 3 && dist(p, this.draft[0]) < 12 * k) return this.finishPolygon();
       this.draft.push(p);
-      this.status.set(`${this.draft.length} points. Need 3+ to finish (double-click or click the first point).`);
+      this.draftCount.set(this.draft.length);
+      this.status.set(`${this.draft.length} points. Need 3+ to finish: tap Finish, or tap the first point.`);
       this.schedule();
     } else if (tool === 'brush') {
       this.brushing = true;
@@ -345,6 +348,7 @@ export class Editor implements OnInit, OnDestroy {
   private finishPolygon() {
     const pts = this.draft;
     this.draft = [];
+    this.draftCount.set(0);
     this.hover = null;
     this.addWall('polygon', pts);
     this.status.set('Wall added. Pick another colour for the next wall, or use the Select tool to edit.');
@@ -372,10 +376,35 @@ export class Editor implements OnInit, OnDestroy {
     this.commit();
   }
 
+  // ---------- fixing a wrong outline ----------
+  /** Removes the last corner placed, so one wrong tap does not mean starting over. */
+  undoPoint() {
+    if (!this.draft.length) return;
+    this.draft.pop();
+    this.draftCount.set(this.draft.length);
+    if (!this.draft.length) this.hover = null;
+    this.status.set(this.draft.length ? `${this.draft.length} points. Tap the next corner.` : 'Outline removed. Tap the wall corners to start again.');
+    this.schedule();
+  }
+
+  /** Throws away the whole outline in progress. */
+  cancelDraft() {
+    this.draft = [];
+    this.draftCount.set(0);
+    this.hover = null;
+    this.status.set('Outline cancelled. Tap the wall corners to start again.');
+    this.schedule();
+  }
+
+  finishDraft() {
+    if (this.draft.length >= 3) this.finishPolygon();
+  }
+
   // ---------- editing ----------
   setTool(t: Tool) {
     this.tool.set(t);
     this.draft = [];
+    this.draftCount.set(0);
     this.hover = null;
     this.status.set(
       t === 'polygon'
@@ -627,12 +656,12 @@ export class Editor implements OnInit, OnDestroy {
     } else if (mod && e.key.toLowerCase() === 'y') {
       e.preventDefault();
       this.redo();
+    } else if (this.draft.length && (e.key === 'Delete' || e.key === 'Backspace')) {
+      this.undoPoint();
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       this.deleteWall();
     } else if (e.key === 'Escape') {
-      this.draft = [];
-      this.hover = null;
-      this.schedule();
+      this.cancelDraft();
     } else if (e.key === 'Enter' && this.draft.length >= 3) {
       this.finishPolygon();
     }

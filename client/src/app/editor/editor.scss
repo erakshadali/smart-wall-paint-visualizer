@@ -74,18 +74,34 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
   .row { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font-size: 14px; small { color: var(--muted); margin-left: auto; } }
   .del { border: 0; background: transparent; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 10px; &:hover { color: #d33; } } }
 
+.draft-bar { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 2; display: flex; gap: 6px; line-height: 1.2;
+  .btn { padding: 8px 12px; font-size: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.25); background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+    &.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    &:disabled { opacity: .5; } } }
+.tabs { position: sticky; top: 0; z-index: 3; background: var(--surface); padding-bottom: 8px; }
+
 @media (max-width: 640px) {
-  .bar { flex-wrap: wrap; padding: 8px 12px; }
-  .title { flex: 1; width: auto; max-width: none; }
+  .bar { flex-wrap: wrap; padding: 6px 10px; gap: 6px; }
+  .title { flex: 1 1 100%; width: auto; max-width: none; order: -1; }
+  .back { order: -2; }
   .spacer { display: none; }
-  .bar .btn { padding: 7px 12px; font-size: 13px; }
-  .stage { padding: 10px; }
+  .bar .btn { padding: 6px 10px; font-size: 12px; }
 }
 
+/* Phones and tablets: the whole editor fits one screen. The photo stays pinned at the top, the tools sit right
+   under it, and only the options panel below scrolls. */
 @media (max-width: 1000px) {
-  :host { height: auto; min-height: 100vh; }
-  .layout { grid-template-columns: 1fr; }
-  .tools { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); }
-  .panel { border-left: 0; border-top: 1px solid var(--line); }
-  .wrap canvas { max-height: 60vh; }
+  :host { height: 100vh; height: 100dvh; min-height: 0; }
+  .layout { display: flex; flex-direction: column; min-height: 0; }
+  .stage { order: 1; flex: 0 0 auto; height: 44vh; height: 44dvh; padding: 6px; gap: 4px; overflow: hidden; }
+  .wrap canvas { max-height: calc(44dvh - 44px); max-width: 100%; }
+  .hint { font-size: 12px; line-height: 1.3; }
+  .disclaimer { display: none; }
+  .tools { order: 2; flex: 0 0 auto; flex-direction: row; align-items: center; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding: 6px 8px; border-right: 0; border-bottom: 1px solid var(--line); border-top: 1px solid var(--line); }
+  .tools hr { display: none; }
+  .tools .tool { flex: none; padding: 8px 10px; font-size: 13px; }
+  .tools .check, .tools .field { flex: none; margin: 0; white-space: nowrap; }
+  .tools input[type='range'] { width: 110px; }
+  .panel { order: 3; flex: 1 1 0; min-height: 0; overflow-y: auto; border-left: 0; padding: 10px 12px 24px; -webkit-overflow-scrolling: touch; }
+  .pats { max-height: none; overflow: visible; }
 }
