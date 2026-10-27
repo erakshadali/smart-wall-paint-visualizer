@@ -51,7 +51,15 @@ export class Editor implements OnInit, OnDestroy {
   readonly brightness = signal(1);
 
   readonly patterns = signal<Pattern[]>([]);
-  readonly panelTab = signal<'colours' | 'patterns' | 'presets'>('colours');
+  readonly panelTab = signal<'colours' | 'patterns' | 'presets' | 'adjust' | 'walls'>('colours');
+  /** Bottom tab bar shown on phones. On larger screens Adjust and Walls are always visible in the side panel. */
+  readonly mobileTabs = [
+    { id: 'colours', label: 'Colours', icon: '\u{1F3A8}' },
+    { id: 'patterns', label: 'Patterns', icon: '\u25A6' },
+    { id: 'presets', label: 'Presets', icon: '\u2728' },
+    { id: 'adjust', label: 'Adjust', icon: '\u{1F39A}' },
+    { id: 'walls', label: 'Walls', icon: '\u25AD' },
+  ] as const;
   readonly patternQuery = signal('');
   readonly patternCategory = signal('All');
   readonly categories = computed(() => ['All', ...categoriesFor(this.patterns())]);
