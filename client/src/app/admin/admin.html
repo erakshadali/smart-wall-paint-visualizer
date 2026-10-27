@@ -111,7 +111,7 @@
       <form class="card form" (submit)="addPattern($event)">
         <h2>Add a pattern</h2>
         <label>Name <input required [value]="pName()" (input)="pName.set($any($event.target).value)" /></label>
-        <label>Style <input placeholder="Stripes, Floral…" [value]="pStyle()" (input)="pStyle.set($any($event.target).value)" /></label>
+        <label>Style <input placeholder="Stripes, Geometric, Textures, Panels, Wallpaper" [value]="pStyle()" (input)="pStyle.set($any($event.target).value)" /></label>
         <label>Tile image (JPG or PNG) <input type="file" accept="image/jpeg,image/png" (change)="pickPatternFile($event)" /></label>
         <button class="btn primary" type="submit" [disabled]="!pName() || !pFile()">Add pattern</button>
       </form>

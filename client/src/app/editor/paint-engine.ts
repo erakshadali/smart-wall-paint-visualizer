@@ -1,4 +1,5 @@
 import { Finish } from '../core/models';
+import { WallStyle, styleWeight } from './wall-style';
 
 export interface Pt {
   x: number;
@@ -20,6 +21,8 @@ export interface Wall {
   hex: string;
   opacity: number;
   finish: Finish;
+  /** Optional preset effect (split / gradient / border) using a second colour. */
+  style?: WallStyle;
 }
 
 /** How strongly each finish keeps the wall's own light and shadow. */
@@ -165,7 +168,11 @@ export class PaintEngine {
     const avg = Math.max(sum / weight, 0.05);
 
     const [r0, g0, b0] = hexToRgb(wall.hex);
-    const pat = wall.patternUrl ? this.patternPixels(wall, x0, y0, bw, bh) : null;
+    const pat = wall.patternUrl && !wall.style ? this.patternPixels(wall, x0, y0, bw, bh) : null;
+    const style = wall.style;
+    const [r2, g2, b2] = style ? hexToRgb(style.hex) : [0, 0, 0];
+    const topY = Math.min(...ys);
+    const wallH = Math.max(1, Math.max(...ys) - topY);
     const contrast = CONTRAST[wall.finish];
     const bright = wall.brightness ?? 1;
     const od = out.data;
@@ -174,9 +181,15 @@ export class PaintEngine {
         const a = (m[(j * bw + i) * 4 + 3] / 255) * wall.opacity;
         if (a <= 0) continue;
         const pi = (j * bw + i) * 4;
-        const r = pat ? pat[pi] : r0;
-        const g = pat ? pat[pi + 1] : g0;
-        const b = pat ? pat[pi + 2] : b0;
+        let r = pat ? pat[pi] : r0;
+        let g = pat ? pat[pi + 1] : g0;
+        let b = pat ? pat[pi + 2] : b0;
+        if (style) {
+          const w = styleWeight(style, Math.min(1, Math.max(0, (y0 + j + 0.5 - topY) / wallH)), wallH);
+          r += (r2 - r) * w;
+          g += (g2 - g) * w;
+          b += (b2 - b) * w;
+        }
         const l = this.lum[(y0 + j) * W + x0 + i];
         let ratio = (1 + (l / avg - 1) * contrast) * bright;
         ratio = Math.min(2.2, Math.max(0.25, ratio));

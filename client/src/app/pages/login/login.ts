@@ -16,7 +16,12 @@ import { AuthService } from '../../core/auth.service';
         <label>Email <input name="email" type="email" required autocomplete="email" [value]="email()" (input)="email.set($any($event.target).value)" /></label>
         <label>
           Password
-          <input name="password" type="password" required minlength="8" autocomplete="current-password" [value]="password()" (input)="password.set($any($event.target).value)" />
+          <span class="pw">
+            <input name="password" [type]="showPassword() ? 'text' : 'password'" required minlength="8" [attr.autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'" [value]="password()" (input)="password.set($any($event.target).value)" />
+            <button class="toggle" type="button" (click)="showPassword.set(!showPassword())" [attr.aria-pressed]="showPassword()" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+              {{ showPassword() ? 'Hide' : 'Show' }}
+            </button>
+          </span>
         </label>
 
         @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
@@ -33,6 +38,9 @@ import { AuthService } from '../../core/auth.service';
     h1 { font-size: 22px; margin: 0; }
     .sub { margin: 0; color: var(--muted); font-size: 14px; }
     label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+    .pw { position: relative; display: block; }
+    .pw input { width: 100%; box-sizing: border-box; padding-right: 64px; }
+    .toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 13px; padding: 4px 6px; }
     .error { margin: 0; color: #d33; font-size: 13px; }
     .link { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 13px; }
   `,
@@ -47,6 +55,7 @@ export class Login {
   readonly password = signal('');
   readonly error = signal('');
   readonly busy = signal(false);
+  readonly showPassword = signal(false);
 
   toggle() {
     this.mode.update((m) => (m === 'login' ? 'register' : 'login'));

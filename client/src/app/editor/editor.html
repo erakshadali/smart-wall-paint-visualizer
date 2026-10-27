@@ -63,6 +63,7 @@
     <div class="seg tabs" role="tablist">
       <button role="tab" [class.on]="panelTab() === 'colours'" (click)="panelTab.set('colours')">Colours</button>
       <button role="tab" [class.on]="panelTab() === 'patterns'" (click)="panelTab.set('patterns')">Patterns</button>
+      <button role="tab" [class.on]="panelTab() === 'presets'" (click)="panelTab.set('presets')">Presets</button>
     </div>
     @if (panelTab() === 'colours') {
     <input class="search" type="search" placeholder="Search colours" [value]="query()" (input)="query.set($any($event.target).value)" />
@@ -92,19 +93,31 @@
         >&#9829;</button>
       </p>
     }
-    } @else {
+    } @else if (panelTab() === 'patterns') {
+      <input
+        class="search" type="search" placeholder="Search patterns" aria-label="Search patterns"
+        [value]="patternQuery()" (input)="patternQuery.set($any($event.target).value)"
+      />
+      <div class="chips" role="group" aria-label="Pattern categories">
+        @for (c of categories(); track c) {
+          <button class="chip" type="button" [class.on]="patternCategory() === c" [attr.aria-pressed]="patternCategory() === c" (click)="patternCategory.set(c)">{{ c }}</button>
+        }
+      </div>
+      <button class="btn surprise" type="button" (click)="surpriseMe()" [disabled]="!patterns().length">&#10024; Surprise me</button>
       <div class="pats">
-        @for (p of patterns(); track p._id) {
+        @for (p of visiblePatterns(); track p._id) {
           <button
-            class="pat"
+            class="pat" type="button"
             [class.on]="currentPattern()?._id === p._id"
-            [style.background-image]="'url(' + api.imageUrl(p.imageUrl) + ')'"
-            [title]="p.name"
-            [attr.aria-label]="p.name"
+            [attr.aria-pressed]="currentPattern()?._id === p._id"
+            [title]="p.name + (p.description ? ': ' + p.description : '')"
             (click)="pickPattern(p)"
-          ></button>
+          >
+            <span class="tile" [style.background-image]="'url(' + api.imageUrl(p.imageUrl) + ')'"></span>
+            <span class="pname">{{ p.name }}</span>
+          </button>
         } @empty {
-          <p class="muted">No patterns yet. An admin can add some.</p>
+          <p class="muted wide">{{ patterns().length ? 'No patterns match. Try another category or search.' : 'No patterns yet. An admin can add some.' }}</p>
         }
       </div>
       @if (currentPattern(); as p) {
@@ -118,6 +131,62 @@
           />
         </label>
       }
+    } @else {
+      <div class="presets" role="group" aria-label="Design presets">
+        @for (p of presets; track p.kind) {
+          <button class="preset" type="button" [class.on]="presetKind() === p.kind" [attr.aria-pressed]="presetKind() === p.kind" (click)="setPresetKind(p.kind)">{{ p.name }}</button>
+        }
+      </div>
+      <p class="muted">{{ presetBlurb() }}</p>
+
+      <div class="field">
+        {{ presetKind() === 'accent' ? 'Accent colour (selected wall)' : presetKind() === 'gradient' ? 'Top colour' : 'Main colour' }}
+        @if (presetA(); as a) { <span class="picked"><span class="dot" [style.background]="a.hex"></span>{{ a.name }}</span> }
+        <div class="swatches small">
+          @for (c of presetColorsA(); track c._id) {
+            <button class="swatch" type="button" [class.on]="presetA()?._id === c._id" [style.background]="c.hex" [title]="c.name" [attr.aria-label]="c.name" [attr.aria-pressed]="presetA()?._id === c._id" (click)="setPresetColor('A', c)"></button>
+          }
+        </div>
+      </div>
+      <div class="field">
+        {{ presetKind() === 'accent' ? 'Neutral colour (other walls)' : presetKind() === 'gradient' ? 'Bottom colour' : presetKind() === 'split' ? 'Lower colour' : 'Band colour' }}
+        @if (presetB(); as b) { <span class="picked"><span class="dot" [style.background]="b.hex"></span>{{ b.name }}</span> }
+        <div class="swatches small">
+          @for (c of presetColorsB(); track c._id) {
+            <button class="swatch" type="button" [class.on]="presetB()?._id === c._id" [style.background]="c.hex" [title]="c.name" [attr.aria-label]="c.name" [attr.aria-pressed]="presetB()?._id === c._id" (click)="setPresetColor('B', c)"></button>
+          }
+        </div>
+      </div>
+
+      @if (presetKind() !== 'accent') {
+        <label class="field">
+          {{ presetKind() === 'split' ? 'Split height' : presetKind() === 'gradient' ? 'Blend midpoint' : 'Band height' }}
+          {{ (presetHeight() * 100).toFixed(0) }}% from the floor
+          <input
+            type="range" min="0.05" max="0.95" step="0.01" [value]="presetHeight()"
+            (input)="setPresetHeight(+$any($event.target).value, false)"
+            (change)="setPresetHeight(+$any($event.target).value, true)"
+          />
+        </label>
+      }
+      @if (presetKind() === 'border') {
+        <label class="field">
+          Band thickness {{ (presetSize() * 100).toFixed(0) }}%
+          <input
+            type="range" min="0.02" max="0.25" step="0.01" [value]="presetSize()"
+            (input)="setPresetSize(+$any($event.target).value, false)"
+            (change)="setPresetSize(+$any($event.target).value, true)"
+          />
+        </label>
+      }
+
+      <div class="row-actions">
+        <button class="btn primary" type="button" (click)="applyPreset()" [disabled]="!ready()">Apply to {{ presetKind() === 'accent' ? 'walls' : 'selected wall' }}</button>
+        @if (selected()?.style) {
+          <button class="btn ghost" type="button" (click)="clearPreset()">Remove effect</button>
+        }
+      </div>
+      @if (!selected()) { <p class="muted">Use the Select / edit tool and click a painted wall first.</p> }
     }
 
     <label class="field">
@@ -153,7 +222,7 @@
         <li [class.on]="w.id === selectedId()">
           <button class="row" (click)="selectWall(w.id)">
             <span class="dot" [style.background]="w.hex"></span>
-            Wall {{ i + 1 }} <small>{{ w.type }}</small>
+            Wall {{ i + 1 }} <small>{{ w.style ? w.style.kind : w.type }}</small>
           </button>
           <button class="del" (click)="deleteWall(w.id)" aria-label="Delete wall {{ i + 1 }}">&times;</button>
         </li>

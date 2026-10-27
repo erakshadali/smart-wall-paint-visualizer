@@ -24,6 +24,13 @@ export interface Pattern {
 
 export type Finish = 'matte' | 'satin' | 'glossy';
 
+export interface WallStyleDto {
+  kind: 'split' | 'gradient' | 'border';
+  at: number;
+  size: number;
+  colorId: string;
+}
+
 export interface WallDto {
   type: 'polygon' | 'brush';
   points: { x: number; y: number }[];
@@ -34,6 +41,8 @@ export interface WallDto {
   brightness?: number;
   opacity: number;
   finish: Finish;
+  /** Optional preset effect (older saved designs do not have it). */
+  style?: WallStyleDto;
 }
 
 export interface Project {

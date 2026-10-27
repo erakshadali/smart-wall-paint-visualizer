@@ -47,7 +47,7 @@ await Color.bulkWrite(
 for (const seed of PATTERN_SEEDS) {
   if (await Pattern.findOne({ name: seed.name })) continue;
   const imageUrl = await storeImage(seed.build(), `seed-${seed.name.toLowerCase().replace(/\s+/g, '-')}.png`);
-  await Pattern.create({ name: seed.name, style: seed.style, description: seed.description, imageUrl, scale: 1 });
+  await Pattern.create({ name: seed.name, style: seed.style, description: seed.description, imageUrl, scale: seed.scale ?? 1 });
 }
 
 // One-time import of images saved on local disk by earlier versions.

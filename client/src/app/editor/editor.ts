@@ -4,8 +4,18 @@ import { forkJoin } from 'rxjs';
 import { ApiService } from '../core/api.service';
 import { Color, Finish, Pattern, WallDto } from '../core/models';
 import { PaintEngine, Pt, Wall, tracePath } from './paint-engine';
+import { accentColors, categoriesFor, filterPatterns, neutralColors, surprise } from './pattern-catalog';
+import { DEFAULT_BORDER_SIZE, StyleKind, heightFromStyle, styleFromHeight } from './wall-style';
 
 type Tool = 'select' | 'polygon' | 'brush';
+type PresetKind = 'accent' | StyleKind;
+
+const PRESETS: { kind: PresetKind; name: string; blurb: string }[] = [
+  { kind: 'accent', name: 'Accent wall', blurb: 'A bold colour on the selected wall, a calm neutral on the others.' },
+  { kind: 'split', name: 'Two-tone split', blurb: 'Different colours above and below a line, like a dado or wainscot.' },
+  { kind: 'gradient', name: 'Ombre', blurb: 'A smooth vertical blend from the top colour to the bottom colour.' },
+  { kind: 'border', name: 'Border stripe', blurb: 'A thin horizontal band across the wall.' },
+];
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 
@@ -41,7 +51,22 @@ export class Editor implements OnInit, OnDestroy {
   readonly brightness = signal(1);
 
   readonly patterns = signal<Pattern[]>([]);
-  readonly panelTab = signal<'colours' | 'patterns'>('colours');
+  readonly panelTab = signal<'colours' | 'patterns' | 'presets'>('colours');
+  readonly patternQuery = signal('');
+  readonly patternCategory = signal('All');
+  readonly categories = computed(() => ['All', ...categoriesFor(this.patterns())]);
+  readonly visiblePatterns = computed(() => filterPatterns(this.patterns(), this.patternCategory(), this.patternQuery()));
+
+  // Presets: colour A is the main/top colour, colour B the second (bottom / band / neutral) colour.
+  readonly presets = PRESETS;
+  readonly presetKind = signal<PresetKind>('accent');
+  readonly presetA = signal<Color | null>(null);
+  readonly presetB = signal<Color | null>(null);
+  readonly presetHeight = signal(0.35);
+  readonly presetSize = signal(DEFAULT_BORDER_SIZE);
+  readonly presetBlurb = computed(() => PRESETS.find((p) => p.kind === this.presetKind())!.blurb);
+  readonly presetColorsA = computed(() => (this.presetKind() === 'accent' ? accentColors(this.colors()) : this.colors()));
+  readonly presetColorsB = computed(() => (this.presetKind() === 'accent' ? neutralColors(this.colors()) : this.colors()));
   readonly currentPattern = signal<Pattern | null>(null);
   readonly patternScale = signal(1);
 
@@ -95,6 +120,8 @@ export class Editor implements OnInit, OnDestroy {
         this.colors.set(colors);
         this.patterns.set(patterns);
         this.currentColor.set(colors[0] ?? null);
+        this.presetA.set(accentColors(colors)[0] ?? colors[0] ?? null);
+        this.presetB.set(neutralColors(colors)[0] ?? colors[1] ?? null);
         this.title.set(project.project.title);
         this.disclaimer.set(project.disclaimer);
         this.loadImage(this.api.imageUrl(project.project.originalImageUrl), async () => {
@@ -115,6 +142,15 @@ export class Editor implements OnInit, OnDestroy {
               hex: byId.get(w.colorId ?? '')?.hex ?? '#4F86C6',
               opacity: w.opacity ?? 0.85,
               finish: w.finish ?? 'matte',
+              style: w.style
+                ? {
+                    kind: w.style.kind,
+                    at: w.style.at ?? 0.5,
+                    size: w.style.size ?? 0,
+                    colorId: w.style.colorId,
+                    hex: byId.get(w.style.colorId)?.hex ?? '#4F86C6',
+                  }
+                : undefined,
             }))
           );
           this.commit();
@@ -360,7 +396,14 @@ export class Editor implements OnInit, OnDestroy {
       this.brightness.set(w.brightness ?? 1);
       const pat = this.patterns().find((p) => p._id === w.patternId) ?? null;
       this.currentPattern.set(pat);
-      this.panelTab.set(pat ? 'patterns' : 'colours');
+      if (this.panelTab() !== 'presets') this.panelTab.set(pat ? 'patterns' : 'colours');
+      if (w.style) {
+        this.presetKind.set(w.style.kind);
+        this.presetHeight.set(heightFromStyle(w.style));
+        this.presetSize.set(w.style.kind === 'border' ? w.style.size : DEFAULT_BORDER_SIZE);
+        this.presetB.set(this.colors().find((c) => c._id === w.style!.colorId) ?? this.presetB());
+        this.presetA.set(this.colors().find((c) => c._id === w.colorId) ?? this.presetA());
+      }
     }
   }
 
@@ -380,11 +423,114 @@ export class Editor implements OnInit, OnDestroy {
     this.currentPattern.set(p);
     this.panelTab.set('patterns');
     const url = this.api.imageUrl(p.imageUrl);
+    const scale = p.scale ?? 1;
+    this.patternScale.set(scale);
     const id = this.selectedId();
     if (id) {
-      this.walls.update((ws) => ws.map((w) => (w.id === id ? { ...w, patternId: p._id, patternUrl: url } : w)));
+      this.walls.update((ws) => ws.map((w) => (w.id === id ? { ...w, patternId: p._id, patternUrl: url, patternScale: scale, style: undefined } : w)));
       this.commit();
     }
+  }
+
+  /** Random pattern on the selected wall and a random colour on the other walls. */
+  surpriseMe() {
+    const pick = surprise(this.patterns(), this.colors());
+    if (!pick) return;
+    const id = this.selectedId();
+    this.currentColor.set(pick.color);
+    if (id) {
+      this.pickPattern(pick.pattern);
+      if (this.walls().length > 1) {
+        this.walls.update((ws) =>
+          ws.map((w) => (w.id === id ? w : { ...w, colorId: pick.color._id, hex: pick.color.hex, patternId: undefined, patternUrl: undefined, style: undefined }))
+        );
+        this.commit();
+      }
+      this.status.set(`Surprise: ${pick.pattern.name} on the selected wall, ${pick.color.name} on the others. Undo to go back.`);
+    } else {
+      this.currentPattern.set(pick.pattern);
+      this.patternScale.set(pick.pattern.scale ?? 1);
+      this.status.set(`Surprise: ${pick.pattern.name} with ${pick.color.name}. Outline a wall to use it, or select one first.`);
+    }
+  }
+
+  // ---------- presets ----------
+  setPresetKind(kind: PresetKind) {
+    this.presetKind.set(kind);
+    if (kind !== 'accent') return;
+    const a = this.presetA();
+    const b = this.presetB();
+    if (!a || !accentColors(this.colors()).some((c) => c._id === a._id)) this.presetA.set(accentColors(this.colors())[0] ?? a);
+    if (!b || !neutralColors(this.colors()).some((c) => c._id === b._id)) this.presetB.set(neutralColors(this.colors())[0] ?? b);
+  }
+
+  setPresetColor(slot: 'A' | 'B', c: Color) {
+    (slot === 'A' ? this.presetA : this.presetB).set(c);
+    this.refreshPreset(true);
+  }
+
+  setPresetHeight(v: number, final: boolean) {
+    this.presetHeight.set(v);
+    this.refreshPreset(final);
+  }
+
+  setPresetSize(v: number, final: boolean) {
+    this.presetSize.set(v);
+    this.refreshPreset(final);
+  }
+
+  /** If the selected wall already shows this preset, keep it in sync with the controls. */
+  private refreshPreset(final: boolean) {
+    const kind = this.presetKind();
+    const sel = this.selected();
+    if (kind === 'accent' || !sel?.style || sel.style.kind !== kind) return;
+    this.applyStyle(sel.id, kind, final);
+  }
+
+  private applyStyle(id: string, kind: StyleKind, final: boolean) {
+    const a = this.presetA();
+    const b = this.presetB();
+    if (!a || !b) return;
+    const pos = styleFromHeight(kind, this.presetHeight(), this.presetSize());
+    this.walls.update((ws) =>
+      ws.map((w) =>
+        w.id === id
+          ? { ...w, colorId: a._id, hex: a.hex, patternId: undefined, patternUrl: undefined, style: { kind, ...pos, colorId: b._id, hex: b.hex } }
+          : w
+      )
+    );
+    if (final) this.commit();
+  }
+
+  applyPreset() {
+    const kind = this.presetKind();
+    const sel = this.selected();
+    const a = this.presetA();
+    const b = this.presetB();
+    if (!sel) {
+      this.status.set('Select a wall first: use the Select / edit tool and click a painted wall.');
+      return;
+    }
+    if (!a || !b) return;
+    if (kind === 'accent') {
+      const plain = { patternId: undefined, patternUrl: undefined, style: undefined };
+      this.walls.update((ws) =>
+        ws.map((w) => (w.id === sel.id ? { ...w, colorId: a._id, hex: a.hex, ...plain } : { ...w, colorId: b._id, hex: b.hex, ...plain }))
+      );
+      this.currentColor.set(a);
+      this.commit();
+      this.status.set(`Accent wall: ${a.name} on the selected wall, ${b.name} on the others.`);
+    } else {
+      this.applyStyle(sel.id, kind, true);
+      this.status.set('Preset applied. Adjust the sliders to fine-tune it.');
+    }
+  }
+
+  clearPreset() {
+    const id = this.selectedId();
+    if (!id) return;
+    this.walls.update((ws) => ws.map((w) => (w.id === id ? { ...w, style: undefined } : w)));
+    this.commit();
   }
 
   setPatternScale(v: number, final: boolean) {
@@ -507,6 +653,9 @@ export class Editor implements OnInit, OnDestroy {
       brightness: w.brightness,
       opacity: w.opacity,
       finish: w.finish,
+      style: w.style
+        ? { kind: w.style.kind, at: Math.round(w.style.at * 1000) / 1000, size: Math.round(w.style.size * 1000) / 1000, colorId: w.style.colorId! }
+        : undefined,
     }));
   }
 

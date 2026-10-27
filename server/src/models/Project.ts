@@ -1,5 +1,16 @@
 import { Schema, model } from 'mongoose';
 
+// Optional preset effect on a wall (older saved designs simply do not have it).
+const wallStyleSchema = new Schema(
+  {
+    kind: { type: String, enum: ['split', 'gradient', 'border'], required: true },
+    at: { type: Number, min: 0, max: 1, default: 0.5 },
+    size: { type: Number, min: 0, max: 1, default: 0 },
+    colorId: { type: Schema.Types.ObjectId, ref: 'Color' },
+  },
+  { _id: false }
+);
+
 const wallSchema = new Schema({
   type: { type: String, enum: ['polygon', 'brush'], default: 'polygon' },
   points: [{ x: Number, y: Number }],
@@ -10,6 +21,7 @@ const wallSchema = new Schema({
   brightness: { type: Number, default: 1, min: 0.5, max: 1.5 },
   opacity: { type: Number, default: 0.8, min: 0, max: 1 },
   finish: { type: String, enum: ['matte', 'satin', 'glossy'], default: 'matte' },
+  style: wallStyleSchema,
 });
 
 const projectSchema = new Schema(
