@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 
 @Component({
@@ -64,7 +64,7 @@ export class Login {
   readonly name = signal('');
   readonly email = signal('');
   readonly password = signal('');
-  readonly error = signal('');
+  readonly error = signal(inject(ActivatedRoute).snapshot.queryParamMap.has('expired') ? 'Your session expired. Please sign in again.' : '');
   readonly busy = signal(false);
   readonly showPassword = signal(false);
 

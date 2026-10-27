@@ -36,14 +36,14 @@ export class AuthService {
     return this.api.register(name, email, password).pipe(tap((r) => this.store(r.token, r.user)));
   }
 
-  logout() {
+  logout(expired = false) {
     this.token.set(null);
     this.user.set(null);
     try {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     } catch {}
-    this.router.navigateByUrl('/login');
+    this.router.navigate(['/login'], expired ? { queryParams: { expired: 1 } } : {});
   }
 
   private store(token: string, user: User) {
