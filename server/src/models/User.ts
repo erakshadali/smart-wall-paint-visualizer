@@ -6,6 +6,8 @@ const userSchema = new Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    // Temporary accounts created by the "Try the demo" button; cleaned up by `npm run cleanup:demo`.
+    isDemo: { type: Boolean, default: false, index: true },
     favouriteColors: [{ type: Schema.Types.ObjectId, ref: 'Color' }],
     favouritePatterns: [{ type: Schema.Types.ObjectId, ref: 'Pattern' }],
   },

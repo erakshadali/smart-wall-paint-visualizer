@@ -29,6 +29,12 @@ import { AuthService } from '../../core/auth.service';
         <button class="link" type="button" (click)="toggle()">
           {{ mode() === 'login' ? "New here? Create an account" : 'Have an account? Sign in' }}
         </button>
+
+        <div class="divider" role="separator"><span>or</span></div>
+        <button class="btn demo" type="button" [disabled]="busy()" (click)="tryDemo()">
+          {{ busy() ? 'Starting demo…' : 'Try the demo' }}
+        </button>
+        <p class="hint">No sign-up needed. You get a temporary account and can use a sample room, so you can try colours, patterns and presets in under a minute.</p>
       </form>
     </main>
   `,
@@ -43,6 +49,11 @@ import { AuthService } from '../../core/auth.service';
     .toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 13px; padding: 4px 6px; }
     .error { margin: 0; color: #d33; font-size: 13px; }
     .link { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 13px; }
+    .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+    .demo { width: 100%; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer; padding: 10px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; }
+    .demo:disabled { opacity: 0.6; cursor: default; }
+    .hint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
   `,
 })
 export class Login {
@@ -60,6 +71,18 @@ export class Login {
   toggle() {
     this.mode.update((m) => (m === 'login' ? 'register' : 'login'));
     this.error.set('');
+  }
+
+  tryDemo() {
+    this.busy.set(true);
+    this.error.set('');
+    this.auth.demo().subscribe({
+      next: () => this.router.navigateByUrl('/upload'),
+      error: (err) => {
+        this.error.set(err.error?.message ?? 'Could not start the demo. Please try again.');
+        this.busy.set(false);
+      },
+    });
   }
 
   submit(e: Event) {

@@ -16,6 +16,7 @@ import { Nav } from '../../shared/nav';
 
         <label>Design name <input [value]="title()" (input)="title.set($any($event.target).value)" maxlength="80" /></label>
         <label>Room photo <input type="file" accept="image/jpeg,image/png" (change)="pick($event)" /></label>
+        <button class="btn sample" type="button" [disabled]="busy()" (click)="useSample()">No photo handy? Use a sample room</button>
         @if (preview()) { <img class="preview" [src]="preview()" alt="Selected room photo preview" /> }
 
         <label class="check">
@@ -38,6 +39,8 @@ import { Nav } from '../../shared/nav';
     .check { flex-direction: row; align-items: center; color: var(--ink); font-size: 14px; }
     .preview { max-width: 100%; max-height: 260px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
     .error { margin: 0; color: #d33; font-size: 13px; }
+    .sample { align-self: flex-start; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer; padding: 8px 12px; border-radius: 10px; font-size: 13px; }
+    .sample:disabled { opacity: 0.6; cursor: default; }
   `,
 })
 export class Upload {
@@ -70,6 +73,25 @@ export class Upload {
       if (old) URL.revokeObjectURL(old);
       return f ? URL.createObjectURL(f) : '';
     });
+  }
+
+  /** Loads the bundled sample room (an illustration shipped with the app) so visitors can try the editor without a photo. */
+  async useSample() {
+    this.error.set('');
+    try {
+      const res = await fetch('/sample-room.png');
+      if (!res.ok) throw new Error('missing');
+      const f = new File([await res.blob()], 'sample-room.png', { type: 'image/png' });
+      this.file.set(f);
+      this.title.set('Sample living room');
+      this.owned.set(true); // the app supplies this image, so there is nothing to confirm
+      this.preview.update((old) => {
+        if (old) URL.revokeObjectURL(old);
+        return URL.createObjectURL(f);
+      });
+    } catch {
+      this.error.set('Could not load the sample room. Please upload your own photo.');
+    }
   }
 
   /** Shrinks big photos in the browser (the editor works at 1600 px anyway) so uploads stay small and fast. */

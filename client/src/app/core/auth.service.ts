@@ -28,6 +28,10 @@ export class AuthService {
     return this.api.login(email, password).pipe(tap((r) => this.store(r.token, r.user)));
   }
 
+  demo() {
+    return this.api.demo().pipe(tap((r) => this.store(r.token, r.user)));
+  }
+
   register(name: string, email: string, password: string) {
     return this.api.register(name, email, password).pipe(tap((r) => this.store(r.token, r.user)));
   }

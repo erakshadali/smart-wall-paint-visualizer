@@ -1,7 +1,7 @@
 # Smart Wall Paint Visualizer
 
 A MEAN-stack web app that lets people preview paint colours and wall patterns on **their own room photos**
-before painting. Built as a Unified Mentor Full-stack Web Development internship project.
+before painting. Built as a full-stack web development project.
 
 > Colours shown are a preview. Final results may vary due to lighting, screen calibration and wall texture.
 

@@ -16,6 +16,11 @@ export class ApiService {
     return this.http.post<{ token: string; user: User }>(this.url('/auth/register'), { name, email, password });
   }
 
+  /** Creates a temporary, non-admin demo account on the server (no credentials involved). */
+  demo() {
+    return this.http.post<{ token: string; user: User }>(this.url('/auth/demo'), {});
+  }
+
   // ---- catalogue ----
   colors() {
     return this.http.get<Color[]>(this.url('/colors'));
