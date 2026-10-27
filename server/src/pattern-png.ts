@@ -346,7 +346,7 @@ export const PATTERN_SEEDS: PatternSeed[] = [
   },
   {
     name: 'Polka Dots',
-    style: 'Playful',
+    style: 'Geometric',
     description: 'Coral dots on warm ivory',
     build: () =>
       makePng(S, (x, y) => {
@@ -367,7 +367,7 @@ export const PATTERN_SEEDS: PatternSeed[] = [
   },
   {
     name: 'Chevron',
-    style: 'Modern',
+    style: 'Geometric',
     description: 'Navy chevron zig-zag',
     build: () =>
       makePng(S, (x, y) => {
@@ -377,7 +377,7 @@ export const PATTERN_SEEDS: PatternSeed[] = [
   },
   {
     name: 'Brick',
-    style: 'Textured',
+    style: 'Panels',
     description: 'Terracotta brick wall',
     build: () =>
       makePng(S, (x, y) => {
