@@ -12,7 +12,7 @@ import { Nav } from '../../shared/nav';
     <main class="wrap">
       <form class="card" (submit)="submit($event)">
         <h1>Upload your room photo</h1>
-        <p class="sub">JPG or PNG, up to 8 MB. Use a clear, well-lit photo of the wall.</p>
+        <p class="sub">JPG or PNG. Large photos are shrunk automatically. Use a clear, well-lit photo of the wall.</p>
 
         <label>Design name <input [value]="title()" (input)="title.set($any($event.target).value)" maxlength="80" /></label>
         <label>Room photo <input type="file" accept="image/jpeg,image/png" (change)="pick($event)" /></label>
@@ -63,8 +63,8 @@ export class Upload {
       this.preview.set('');
       return;
     }
-    if (f && f.size > 8 * 1024 * 1024) {
-      this.error.set('Image is larger than 8 MB.');
+    if (f && f.size > 30 * 1024 * 1024) {
+      this.error.set('Image is larger than 30 MB.');
       this.file.set(null);
       return;
     }
@@ -94,16 +94,46 @@ export class Upload {
     }
   }
 
-  /** Shrinks big photos in the browser (the editor works at 1600 px anyway) so uploads stay small and fast. */
+  /** Decodes a photo, falling back to an <img> element when createImageBitmap is unavailable or fails (some phones). */
+  private async decode(file: File): Promise<{ src: CanvasImageSource; width: number; height: number }> {
+    try {
+      const bmp = await createImageBitmap(file);
+      return { src: bmp, width: bmp.width, height: bmp.height };
+    } catch {
+      const url = URL.createObjectURL(file);
+      try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        return { src: img, width: img.naturalWidth, height: img.naturalHeight };
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+  }
+
+  /**
+   * Shrinks big photos in the browser (the editor works at 1600 px anyway). The hosting platform rejects uploads
+   * above about 4.5 MB, so keep trying smaller sizes until the result is comfortably under that.
+   */
   private async shrink(file: File): Promise<Blob> {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 1600 / bitmap.width);
-    if (scale === 1 && file.size <= 3 * 1024 * 1024) return file;
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? file), 'image/jpeg', 0.9));
+    const img = await this.decode(file);
+    if (img.width <= 1600 && file.size <= 3 * 1024 * 1024) return file;
+    let width = Math.min(1600, img.width);
+    let quality = 0.9;
+    let blob: Blob | null = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = Math.round((img.height * width) / img.width);
+      canvas.getContext('2d')!.drawImage(img.src, 0, 0, canvas.width, canvas.height);
+      blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+      if (blob && blob.size <= 3 * 1024 * 1024) return blob;
+      width = Math.round(width * 0.75);
+      quality = 0.8;
+    }
+    if (blob) return blob;
+    throw new Error('shrink failed');
   }
 
   async submit(e: Event) {
@@ -111,7 +141,18 @@ export class Upload {
     const f = this.file();
     if (!f || !this.owned()) return;
     this.busy.set(true);
-    const image = await this.shrink(f).catch(() => f);
+    this.error.set('');
+    let image: Blob;
+    try {
+      image = await this.shrink(f);
+    } catch {
+      if (f.size > 4 * 1024 * 1024) {
+        this.error.set('This photo is too large and could not be reduced on this device. Please pick a smaller photo (under 4 MB) or take a screenshot of it.');
+        this.busy.set(false);
+        return;
+      }
+      image = f;
+    }
     const form = new FormData();
     form.append('title', this.title());
     form.append('confirmOwnership', 'true');
@@ -119,7 +160,14 @@ export class Upload {
     this.api.createProject(form).subscribe({
       next: (r) => this.router.navigate(['/editor', r.project._id]),
       error: (err) => {
-        this.error.set(err.error?.message ?? 'Upload failed.');
+        this.error.set(
+          err.error?.message ??
+            (err.status === 413
+              ? 'This photo is too large to upload. Please choose a smaller one.'
+              : err.status === 0
+                ? 'Could not reach the server. Check your connection and try again.'
+                : `Upload failed (${err.status}). Please try again.`)
+        );
         this.busy.set(false);
       },
     });
