@@ -15,13 +15,34 @@ function read(key: string): string | null {
   }
 }
 
+/** True when a JWT's own expiry time has passed (or it cannot be read), so stale logins are dropped up front. */
+export function tokenExpired(token: string | null, now = Date.now()): boolean {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp === 'number' && payload.exp * 1000 <= now;
+  } catch {
+    return true;
+  }
+}
+
+function readToken(): string | null {
+  const t = read(TOKEN_KEY);
+  if (!tokenExpired(t)) return t;
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  } catch {}
+  return null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private api = inject(ApiService);
   private router = inject(Router);
 
-  readonly token = signal<string | null>(read(TOKEN_KEY));
-  readonly user = signal<User | null>(JSON.parse(read(USER_KEY) ?? 'null'));
+  readonly token = signal<string | null>(readToken());
+  readonly user = signal<User | null>(this.token() ? JSON.parse(read(USER_KEY) ?? 'null') : null);
   readonly isLoggedIn = computed(() => !!this.token());
 
   login(email: string, password: string) {
