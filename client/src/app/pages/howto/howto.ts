@@ -61,8 +61,8 @@ import { Nav } from '../../shared/nav';
 })
 export class Howto {
   readonly steps = [
-    { title: 'Sign in and upload a photo', text: 'Create an account, then upload a JPG or PNG of your room (up to 8 MB). Confirm the photo is your own.' },
-    { title: 'Select the wall', text: 'Choose the Polygon tool and click each corner of the wall; click the first point or double-click to finish. Use the Brush to paint over curved or irregular areas.' },
+    { title: 'Sign in and upload a photo', text: 'Create an account, then upload a JPG or PNG of your room (large photos are shrunk automatically). Confirm the photo is your own.' },
+    { title: 'Select the wall', text: 'Choose the Polygon tool and tap each corner of the wall, then tap Finish. Made a wrong tap? Use Back to remove the last point. Use the Brush to paint over curved or irregular areas.' },
     { title: 'Pick a colour or pattern', text: 'Choose from the colour palette or the Patterns tab. Adjust opacity, finish (matte, satin, glossy) and pattern size.' },
     { title: 'Edit and compare', text: 'Use the Select tool to drag wall points or recolour a wall. Add more walls for dual-tone rooms, and turn on Before / After to compare.' },
     { title: 'Save or download', text: 'Save the design to My designs, duplicate it to try another scheme, or download the painted image as a PNG.' },

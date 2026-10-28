@@ -167,7 +167,7 @@ export class Editor implements OnInit, OnDestroy {
           );
           this.commit();
           this.ready.set(true);
-          this.status.set('Click on the wall corners to outline it. Double-click or click the first point to finish.');
+          this.status.set('Tap the wall corners to outline it, then tap Finish.');
         });
       },
       error: () => this.status.set('Could not load this project. Is the server running?'),
@@ -416,10 +416,10 @@ export class Editor implements OnInit, OnDestroy {
     this.hover = null;
     this.status.set(
       t === 'polygon'
-        ? 'Click the wall corners to outline it. Double-click or click the first point to finish.'
+        ? 'Tap the wall corners to outline it, then tap Finish.'
         : t === 'brush'
-          ? 'Hold and drag to paint over the wall area.'
-          : 'Click a painted wall to select it, then drag its points or change its colour.'
+          ? 'Drag over the wall area to paint it.'
+          : 'Tap a painted wall to select it, then drag its points or change its colour.'
     );
     this.schedule();
   }
@@ -548,7 +548,7 @@ export class Editor implements OnInit, OnDestroy {
     const a = this.presetA();
     const b = this.presetB();
     if (!sel) {
-      this.status.set('Select a wall first: use the Select / edit tool and click a painted wall.');
+      this.status.set('Select a wall first: use the Select / edit tool and tap a painted wall.');
       return;
     }
     if (!a || !b) return;

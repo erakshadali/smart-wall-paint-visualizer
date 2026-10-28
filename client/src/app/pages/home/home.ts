@@ -48,6 +48,11 @@ import { Nav } from '../../shared/nav';
     .card h2 { font-size: 17px; margin: 0 0 6px; }
     .card p { margin: 0; color: var(--muted); font-size: 14px; }
     .note { margin-top: 32px; font-size: 13px; color: var(--muted); }
+    @media (max-width: 600px) {
+      .hero { padding: 28px 0 20px; }
+      .lead { font-size: 16px; }
+      .cta .big { flex: 1 1 140px; text-align: center; }
+    }
   `,
 })
 export class Home {

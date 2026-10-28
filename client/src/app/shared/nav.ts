@@ -38,6 +38,15 @@ import { AuthService } from '../core/auth.service';
     .spacer { flex: 1; }
     .who { color: var(--muted); font-size: 14px; }
     a.btn { text-decoration: none; }
+
+    @media (max-width: 700px) {
+      .nav { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; padding: 8px 12px; }
+      .brand { font-size: 16px; min-width: 0; }
+      .spacer, .who { display: none; }
+      .nav .btn { padding: 6px 14px; font-size: 13px; }
+      nav { grid-column: 1 / -1; order: 3; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+      nav a { padding: 8px 4px; text-align: center; font-size: 13px; white-space: nowrap; }
+    }
   `,
 })
 export class Nav {
