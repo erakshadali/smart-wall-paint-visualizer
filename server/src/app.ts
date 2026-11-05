@@ -29,7 +29,8 @@ export function connectDb() {
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin: process.env.CLIENT_URL?.split(',').map((o) => o.trim()) }));
+// With no CLIENT_URL set, refuse cross-site browser requests instead of allowing every website.
+app.use(cors({ origin: process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',').map((o) => o.trim()) : false }));
 app.use(express.json({ limit: '1mb' }));
 if (process.env.NODE_ENV !== 'production') app.use(morgan('dev'));
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));

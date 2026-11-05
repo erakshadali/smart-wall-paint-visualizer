@@ -58,11 +58,16 @@ if (fs.existsSync(legacyDir)) {
 
 const email = process.env.ADMIN_EMAIL ?? 'admin@example.com';
 if (!(await User.findOne({ email }))) {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword || adminPassword.length < 12) {
+    console.error('Set ADMIN_PASSWORD (12+ characters) in the environment before seeding the admin account.');
+    process.exit(1);
+  }
   await User.create({
     name: 'Admin',
     email,
     role: 'admin',
-    passwordHash: await bcrypt.hash(process.env.ADMIN_PASSWORD ?? 'ChangeMe@123', 10),
+    passwordHash: await bcrypt.hash(adminPassword, 10),
   });
 }
 console.log(`Seeded ${palette.length} colours and admin ${email}`);

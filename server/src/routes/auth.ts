@@ -18,6 +18,19 @@ const demoLimiter = rateLimit({
   message: { message: 'Too many demo sessions from this network. Please try again later or create an account.' },
 });
 
+// Slow down password guessing and mass sign-ups (failed logins only count, so real users are not locked out).
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  message: { message: 'Too many failed attempts. Please wait 15 minutes and try again.' },
+});
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 20,
+  message: { message: 'Too many sign-ups from this network. Please try again later.' },
+});
+
 /**
  * "Try the demo": creates a temporary, non-admin account with a random password nobody knows,
  * so visitors never share data and no credentials exist anywhere in the client or repo.
@@ -36,8 +49,10 @@ router.post('/demo', demoLimiter, async (_req, res) => {
   res.status(201).json({ token: sign(user, '1d'), user: { id: user.id, name, email, role: user.role } });
 });
 
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   const { name, email, password } = req.body ?? {};
+  // Only plain strings: an object such as {"$ne": null} must never reach a database query.
+  if ([name, email, password].some((v) => typeof v !== 'string')) return res.status(400).json({ message: 'Invalid details' });
   if (!name || !email || !password || password.length < 8)
     return res.status(400).json({ message: 'Name, email and a password of 8+ characters are required' });
   if (await User.findOne({ email })) return res.status(409).json({ message: 'Email already registered' });
@@ -45,8 +60,9 @@ router.post('/register', async (req, res) => {
   res.status(201).json({ token: sign(user), user: { id: user.id, name, email, role: user.role } });
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body ?? {};
+  if (typeof email !== 'string' || typeof password !== 'string') return res.status(400).json({ message: 'Invalid email or password' });
   const user = await User.findOne({ email });
   if (!user || !(await bcrypt.compare(password ?? '', user.passwordHash)))
     return res.status(401).json({ message: 'Invalid email or password' });
